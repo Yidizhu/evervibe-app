@@ -6,9 +6,11 @@ EverVibe helps two people turn the things they love into something to do, discus
 
 Open **Try your own Vibe** from the home page, or visit `/try.html`.
 
+For a quick start, select **Try two different tastes**. It looks up *Knives Out* and *Amélie*, selects New York City and fills two sample Vibes. Review the sharing checkbox and press **Start together**. Qloo's shared themes appear immediately; a suggested first question is placed in the composer for you to send or edit.
+
 1. **Choose something you love.** Search for a film, artist or book, then add an actual search result to **Your Vibe**. You can select up to three interests.
 2. **Open a demo connection.** The black box introduces Anya, a fictional sample partner, with her photograph and interests. Her sample film is added only if the catalog returns the matching title and year. You can open **Edit the sample Vibe yourself** to change her interests or add a note about what she would enjoy today.
-3. **Start together.** Choose Tokyo, New York City, London or Wellington, select **Use these Vibes for this session**, and press **Start together**.
+3. **Start together.** Choose Tokyo, New York City, London or Wellington, select **Share these Vibes with EVE for this session**, and press **Start together**. If a step is missing, the page explains what to do and focuses that control. **A little common ground** displays cultural themes Qloo found across the two Vibes, when available.
 4. **Speak from both sides.** Tell EVE what you would enjoy. Change **Speaking as** to add the sample partner's wishes. For example: “I'd love to discover some art” and “One stop sounds good. I'd like time to talk afterwards.” You write both sides; Anya is not another person online.
 5. **Choose a shared idea.** Ask EVE to help plan. Open **Why these suggestions?** to see the cultural starting points. Select a candidate and confirm from both roles. You can ask a follow-up about that choice without clearing either confirmation. Ask explicitly for new or different recommendations when you want to replace it.
 

@@ -24,6 +24,7 @@
       <p class="eyebrow" data-i18n="eyebrow">A little of you. A little of us.</p>
       <h1 id="page-title" data-i18n="title">Bring a few things you love.<br>Find something to share.</h1>
       <p class="intro-note" data-i18n="sampleNote">The sample partner is a role you can try, not a person online.</p>
+      <button id="quick-example" class="example-pair" type="button" data-i18n="quickExample">Try two different tastes</button>
     </section>
     <section id="vibe-setup" aria-label="Vibe setup">
       <ol class="demo-flow" aria-label="Experience steps"><li data-i18n="flowYou">Your Vibe</li><li data-i18n="flowPartner">A demo connection</li><li data-i18n="flowTogether">Plan with EVE</li></ol>
@@ -49,14 +50,15 @@
       </div>
       <div class="session-options">
         <div class="city-field"><label for="city" data-i18n="city">Our city</label><select id="city"><option value="tokyo">Tokyo</option><option value="new-york">New York City</option><option value="london">London</option><option value="wellington">Wellington</option></select></div>
-        <label class="consent"><input id="consent" type="checkbox"><span data-i18n="consent">Use these Vibes for this session</span></label>
+        <label class="consent"><input id="consent" type="checkbox" aria-describedby="setup-status"><span data-i18n="consent">Share these Vibes with EVE for this session</span></label>
         <button id="start" class="primary" data-i18n="start">Start together</button>
       </div>
-      <p class="fine" data-i18n="privacy">Search sends only that search. Sending a message shares your two Vibes and chat with EVE. Only your language preference is saved on this device.</p>
-      <p id="setup-status" class="setup-status" role="status"></p>
+      <p class="fine" data-i18n="privacy">Starting compares your selected interests with Qloo. Your notes and chat reach EVE when you send a message. Only your language preference is saved on this device.</p>
+      <p id="setup-status" class="setup-status" role="status" aria-live="polite" tabindex="-1"></p>
     </section>
     <section class="conversation" aria-labelledby="chat-heading">
       <div class="conversation-head"><div><p class="eyebrow" data-i18n="together">TOGETHER</p><h2 id="chat-heading" data-i18n="chatHeading">You, your sample partner & EVE</h2></div><span class="eve-orb" aria-hidden="true">E</span></div>
+      <div id="taste-bridge" aria-live="polite" hidden></div>
       <div id="messages" class="messages" role="log" aria-live="polite" aria-relevant="additions"></div>
       <div id="recommendations"></div>
       <div id="chat-status" class="chat-status" role="status"></div>

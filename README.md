@@ -6,12 +6,11 @@ EverVibe turns cultural interests into things two people can do, discuss and rem
 
 ## Explore
 
-- **[Live app](https://evervibe.zesty-mesa-1831.chatgpt.site/)** — open in a desktop or mobile browser; no login or personal API key is required.
-- **[Try your own Vibe](https://evervibe.zesty-mesa-1831.chatgpt.site/try?lang=en)** — the visitor experience, using your interests and a fictional companion.
-- **[Follow four stories](https://evervibe.zesty-mesa-1831.chatgpt.site/stories?lang=en)** — explore the fictional relationships and the full set of story features.
+- **[Try the live demo](https://evervibe.zesty-mesa-1831.chatgpt.site/try?lang=en)** — start with two sample tastes or bring your own.
+- **[Follow four stories](https://evervibe.zesty-mesa-1831.chatgpt.site/stories?lang=en)** — explore the fictional relationships and the story features.
 
 - **Four stories** — `/stories.html?lang=en`: four fictional couples in Tokyo, New York, London and Wellington. Each story explores a different moment: discovery, connection, repair or lasting companionship.
-- **Try your own Vibe** — `/try.html`: search for a film, artist or book you love, open a fictional demo connection, and make a plan with EVE using real Qloo results. You can play both sides; no other person needs to be online.
+- **Try your own Vibe** — `/try.html?lang=en`: choose **Try two different tastes** for a quick start, or search for films, artists or books yourself. Share the two Vibes, see their common cultural themes from Qloo, and make a plan with EVE. You can play both sides; no other person needs to be online.
 - [User guide](USER_GUIDE.md) — getting started, the four stories and the three conversation spaces.
 
 The first visit starts in English. English and Simplified Chinese interface and authored story text are available from Settings; the selected language is remembered. Language changes preserve the active session. Typed and already generated messages stay in their original language; new EVE requests use the selected language. Official titles and addresses remain recognizable. Other system languages are not yet translated.
@@ -20,9 +19,10 @@ The first visit starts in English. English and Simplified Chinese interface and 
 
 ```mermaid
 flowchart LR
-    A[Two shared Vibes and today's wishes] --> B[Gemini builds a planning brief]
-    B --> C[Server validates IDs, tags and location]
-    C --> D[Qloo returns cultural candidates]
+    A[Two separately selected Vibes] --> B[Qloo compare finds shared cultural tags]
+    A --> C[Gemini interprets today's wishes]
+    B --> D[Qloo insights uses both Vibes and shared tags]
+    C --> D
     D --> E[EVE explains a grounded choice]
     E --> F[Both people confirm]
     F --> G[People choose what to remember]
@@ -30,7 +30,11 @@ flowchart LR
 
 Qloo is called with resolved cultural entity IDs and bounded filters. Its candidates constrain the places, films and destinations EVE can propose. A date or activity is usually represented by a Qloo `place`. The demo does not claim to integrate every Qloo domain, predict romantic compatibility, or match real people.
 
-A recorded New York request used **Knives Out + Amélie + Nina Simone** to request places. EVE selected Tenement Museum and Whitney Museum of American Art from the returned candidates. Removing Nina Simone in a control request did **not** change the first six results or their order. The request demonstrates actual cross-domain cultural input; this single comparison does not establish that the added artist improves ranking, recommendation quality or relationships.
+In the visitor experience, `/v2/analysis/compare` receives each person's selected entity IDs separately. Its shared cultural tags appear in **A little common ground** and become `signal.interests.tags` in `/v2/insights`, alongside both sets of entity IDs. EVE's explanation is prompted to reference each person's selected work or artist and a returned shared theme. Private notes and chat are never sent to Qloo.
+
+A live **Knives Out + Amélie / New York** comparison returned **Comedy, Stylized and Eccentric**. Adding those themes to the same place query changed five of the first six candidate IDs; Museum of the Moving Image appeared among the new candidates. This demonstrates an effect on this request, not a measured improvement in recommendation quality. [Read the comparison and its limits](docs/QLOO_COMPARISON.md), including an earlier unchanged-result control.
+
+The four authored stories retain their existing entity-based planning path. The compare integration is currently in the visitor Try experience. Missing shared tags do not block plans; a compare outage is labeled and falls back to entity-based discovery. If the final explanation request has a transient Gemini failure, the verified Qloo candidates remain usable. A failure at the initial Gemini routing step still requires a retry.
 
 ## Run locally
 

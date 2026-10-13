@@ -24,6 +24,11 @@ the gated EVE suggestion bridge; cancellation and sanitized provider errors;
 same-origin requests, body bounds and short rolling-window protection; and D1
 catalog reuse across independent service instances.
 
+The current suite contains 105 checks, including separate A/B compare signals,
+shared-tag parsing, cache expiry and invalidation, shared tags entering insights,
+consent and cancellation, honest empty/outage states and verified-candidate fallback
+when the final Gemini explanation has a transient failure.
+
 Only validated public Qloo entity facts and expiry timestamps are persisted in D1.
 Chat, notes and relationship progress are not saved there. Story plans are held in
 memory for 30 minutes: ordinary shared chat can continue after expiry and clears

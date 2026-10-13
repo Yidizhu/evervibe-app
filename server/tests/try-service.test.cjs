@@ -19,6 +19,7 @@ function fixture(options={}){
  const fetch=async(url,init)=>{
   calls.push({url:new URL(url),init});
   if(options.onFetch)return options.onFetch(url,init);
+  if(url.pathname==='/v2/analysis/compare')return options.compareResponse ? options.compareResponse() : Response.json({results:{tags:options.compareTags||[]}});
   if(url.pathname==='/search'){
    const type=url.searchParams.get('types').replace('urn:entity:','');
    return {ok:true,status:200,json:async()=>({results:options.searchResults||[catalog[type]]})};
@@ -43,11 +44,11 @@ test('both independently selected profiles affect Qloo IDs; personal text stays 
  const f=fixture();await f.seed();const result=await f.service.assist(request());
  assert.equal(result.kind,'plan');assert.equal(result.source,'qloo');assert.equal(result.items[0].title,'Provider Cafe');assert.equal(result.items[0].address,'Provider address, London');assert.equal(result.items[0].reason.length>0,true);
  assert.deepEqual(result.seeds.map(s=>[s.owner,s.title]),[['you','Provider Film'],['partner','Provider Artist']]);
- assert.equal(f.calls[0].url.searchParams.get('signal.interests.entities'),`${ids.film},${ids.artist}`);
+ assert.equal(f.calls.find(c=>c.url.pathname==='/v2/insights').url.searchParams.get('signal.interests.entities'),`${ids.film},${ids.artist}`);
  const allQloo=f.calls.map(c=>c.url.href).join('');for(const text of ['PRIVATE_NOTE_YOU','PRIVATE_NOTE_PARTNER','SHARED_TEXT_CAFE','NEVER_FORWARD'])assert(!allQloo.includes(text));
  assert(JSON.stringify(f.sent).includes('PRIVATE_NOTE_YOU'));assert(!JSON.stringify(f.sent).includes('NEVER_FORWARD'));
  const changed=request();changed.vibes.partner.entities=[ids.book];await f.service.assist(changed);
- assert.equal(f.calls[1].url.searchParams.get('signal.interests.entities'),`${ids.film},${ids.book}`);
+ assert.equal(f.calls.filter(c=>c.url.pathname==='/v2/insights')[1].url.searchParams.get('signal.interests.entities'),`${ids.film},${ids.book}`);
 });
 
 test('routing and selection prompts distinguish personal wishes from verified venue conditions in both languages',async()=>{
@@ -122,7 +123,7 @@ test('cross-domain activity, film and nearby travel use strict Qloo output types
  const destination=makeEntity(ids.place,'destination','Nearby destination');destination.location={lat:51.75,lon:-1.25};destination.properties={geocode:{country_code:'GB',city:'Oxford'}};
  for(const [category,candidate,type] of [['activity',museum,'place'],['movie',makeEntity(ids.place,'movie','Provider movie'),'movie'],['travel',destination,'destination']]){
   const f=fixture({route:{intent:category,duration:category==='travel'?'weekend':'few-hours'},results:[candidate]});await f.seed();const result=await f.service.assist(request());
-  assert.equal(result.category,category);assert.equal(result.items[0].type,type);assert.equal(f.calls[0].url.searchParams.get('filter.type'),`urn:entity:${type}`);
+  assert.equal(result.category,category);assert.equal(result.items[0].type,type);assert.equal(f.calls.find(c=>c.url.pathname==='/v2/insights').url.searchParams.get('filter.type'),`urn:entity:${type}`);
  }
 });
 
@@ -144,12 +145,14 @@ test('configuration cannot redirect an API key and rate limits impose a cooldown
  const g=fixture({onFetch:async()=>({ok:false,status:429})});await assert.rejects(g.service.search({query:'x',type:'movie',locale:'en'}),{code:'QLOO_RATE_LIMIT'});await assert.rejects(g.service.search({query:'y',type:'movie',locale:'en'}),{code:'QLOO_RATE_LIMIT'});assert.equal(g.calls.length,1);
 });
 
-test('injected provider errors stop either stage without retries or a second model client',async()=>{
+test('routing errors stop; transient curator errors preserve genuine Qloo results without retries',async()=>{
  for(const code of ['GEMINI_RATE_LIMIT','GEMINI_AUTH_FAILED','GEMINI_UNAVAILABLE']){
   const f=fixture({onGemini:()=>{throw new AppError(503,code,'Provider unavailable.');}});await f.seed();
   await assert.rejects(f.service.assist(request()),{code});assert.equal(f.sent.length,1);assert.equal(f.calls.length,0);
   const g=fixture({onGemini:({schema})=>{if(schema.properties.selections)throw new AppError(503,code,'Provider unavailable.');}});await g.seed();
-  await assert.rejects(g.service.assist(request()),{code});assert.equal(g.sent.length,2);assert.equal(g.calls.length,1);
+  if(code==='GEMINI_AUTH_FAILED')await assert.rejects(g.service.assist(request()),{code});
+  else {const result=await g.service.assist(request());assert.equal(result.explanationAvailable,false);assert.equal(result.source,'qloo');assert.equal(result.items[0].id,ids.place);assert.equal(result.items[0].reason,'');assert.equal(result.items[0].activity,'');}
+  assert.equal(g.sent.length,2);assert.equal(g.calls.length,2);
  }
 });
 
@@ -165,7 +168,7 @@ test('a shared public catalog allows search and assist in different service inst
  const first=fixture({service:{catalogStore}});await first.seed();
  assert.equal(writes.length,3);assert.equal(writes[0].options.ttlSeconds,1);assert(!JSON.stringify(writes).includes('PRIVATE_NOTE'));
  const second=fixture({service:{catalogStore}});const result=await second.service.assist(request());
- assert.equal(result.items[0].title,'Provider Cafe');assert.equal(second.calls.length,1,'Only the plan lookup runs in the second instance');
+ assert.equal(result.items[0].title,'Provider Cafe');assert.deepEqual(second.calls.map(call=>call.url.pathname),['/v2/analysis/compare','/v2/insights'],'No search repeats in the second instance');
  const third=fixture({service:{catalogStore}});third.tick(1001);await assert.rejects(third.service.assist(request()),{code:'TRY_INTEREST_EXPIRED'});assert.equal(third.sent.length,0);
 });
 
@@ -178,4 +181,41 @@ test('shared catalog errors, malformed entries and cancellation fail before a mo
  await assert.rejects(h.service.assist(request(),{signal:controller.signal}),{code:'TRY_CANCELLED'});assert.equal(h.sent.length,0);
  const timed=fixture({service:{catalogTimeoutMs:10,catalogStore:{get:async()=>new Promise(()=>{}),set:async()=>{}}}});
  await assert.rejects(timed.service.assist(request()),{code:'TRY_CATALOG_TIMEOUT'});assert.equal(timed.sent.length,0);
+});
+
+const commonTags=[{tag_id:'urn:tag:genre:media:comedy',name:'Comedy',query:{score:0.91}},{tag_id:'urn:tag:style:qloo:stylized',name:'Stylized'}];
+test('compare sends separate verified groups and returns public themes, never scores or notes',async()=>{
+ const f=fixture({compareTags:commonTags});await f.seed();const result=await f.service.compare({...request(),shared:[{id:'urn:tag:fake',name:'Soulmates'}]});
+ assert.equal(result.status,'ready');assert.equal(result.source,'qloo');assert.equal(f.sent.length,0);assert.equal(f.calls.length,1);
+ const params=f.calls[0].url.searchParams;assert.equal(params.get('a.signal.interests.entities'),ids.film);assert.equal(params.get('b.signal.interests.entities'),ids.artist);assert.equal([...params].length,2);
+ assert.deepEqual(result.shared,[{id:commonTags[0].tag_id,name:'Comedy'},{id:commonTags[1].tag_id,name:'Stylized'}]);
+ assert.deepEqual(result.inputs.you,[{id:ids.film,title:'Provider Film',type:'movie'}]);
+ for(const text of ['PRIVATE_NOTE','SHARED_TEXT','Soulmates','score'])assert(!JSON.stringify(result).includes(text));
+ assert(!f.calls[0].url.href.includes('PRIVATE_NOTE'));
+});
+test('compare caches public themes but recomputes when either person changes an interest',async()=>{
+ const f=fixture({compareTags:commonTags,service:{entityTtlMs:2000000}});await f.seed();assert.equal((await f.service.compare(request())).cached,false);
+ const translated={...request(),locale:'zh'};translated.vibes.you.note='A different private mood';assert.equal((await f.service.compare(translated)).cached,true);assert.equal(f.calls.length,1);
+ translated.vibes.partner.entities=[ids.book];assert.equal((await f.service.compare(translated)).cached,false);assert.equal(f.calls.length,2);
+ f.tick(15*60*1000+1);assert.equal((await f.service.compare(translated)).cached,false);assert.equal(f.calls.length,3);
+});
+test('compare gates consent, verified interests and cancellation before any lookup',async()=>{
+ const f=fixture();await f.seed();await assert.rejects(f.service.compare({...request(),consent:false}),{code:'CONSENT_REQUIRED'});
+ const unknown=request();unknown.vibes.you.entities=[ids.other];await assert.rejects(f.service.compare(unknown),{code:'TRY_INTEREST_EXPIRED'});
+ const controller=new AbortController();controller.abort();await assert.rejects(f.service.compare(request(),{signal:controller.signal}),{code:'TRY_CANCELLED'});assert.equal(f.calls.length,0);
+});
+test('real compare themes enter insights signals and the explanation context',async()=>{
+ const f=fixture({compareTags:commonTags});await f.seed();await f.service.compare(request());const result=await f.service.assist({...request(),shared:[{id:'urn:tag:fake',name:'Fake'}]});
+ assert.equal(f.calls.filter(c=>c.url.pathname==='/v2/analysis/compare').length,1);
+ const insights=f.calls.find(c=>c.url.pathname==='/v2/insights').url;assert.equal(insights.searchParams.get('signal.interests.entities'),`${ids.film},${ids.artist}`);
+ for(const tag of commonTags)assert(insights.searchParams.get('signal.interests.tags').split(',').includes(tag.tag_id));
+ assert(!insights.href.includes('urn%3Atag%3Afake'));assert.deepEqual(result.sharedTagsApplied,commonTags.map(tag=>tag.tag_id));
+ assert.deepEqual(f.sent[1].context.bridge.shared,result.bridge.shared);assert.match(f.sent[1].system,/from EACH person/);
+});
+test('no overlap and compare outages stay explicit while entity-based recommendations continue',async()=>{
+ for(const options of [{},{compareResponse:()=>Response.json({error:'offline'},{status:503})},{compareResponse:()=>Response.json({results:{a:[],b:[]}})}]){
+  const f=fixture(options);await f.seed();const result=await f.service.assist(request());assert.equal(result.items[0].title,'Provider Cafe');assert.deepEqual(result.bridge.shared,[]);assert.deepEqual(result.sharedTagsApplied,[]);
+  assert.equal(result.bridge.status,options.compareResponse?'unavailable':'empty');
+  const count=f.calls.length;await f.service.compare(request());assert.equal(f.calls.length,count,'Failure and empty results are briefly cached');
+ }
 });

@@ -1,8 +1,8 @@
 "use client";
 import {useEffect, useState} from "react";
 const words={
- en:{settings:"Settings",language:"Language",eyebrow:"A WORLD FOR TWO",title:"From me,\nto us.",body:"Find something you both love. Make room for something new.",stories:"Follow four stories",storyNote:"Four fictional couples. Four ways to grow closer.",try:"Try your own Vibe",tryNote:"Your interests, a sample partner, and real cultural discoveries.",detail:"Cultural discovery by Qloo · Conversation with EVE",photo:"Leo and Julian looking through their memories in Wellington",cities:"Tokyo · New York · London · Wellington"},
- zh:{settings:"设置",language:"语言",eyebrow:"两个人的共同世界",title:"从我，\n到我们。",body:"找到一起喜欢的事，也为新的共同爱好留一点空间。",stories:"走进四个故事",storyNote:"四对虚构人物，四种慢慢靠近的方式。",try:"体验我的 Vibe",tryNote:"带上你的兴趣，和示例同伴发现可以一起喜欢的。",detail:"Qloo 发现文化共鸣 · EVE 陪你们一起聊",photo:"Leo 和 Julian 在惠灵顿一起翻看回忆",cities:"东京 · 纽约 · 伦敦 · 惠灵顿"}
+ en:{settings:"Settings",language:"Language",eyebrow:"A WORLD FOR TWO",title:"From me,\nto us.",body:"Qloo finds the cultural threads between two different tastes. EVE helps you turn them into a shared plan.",stories:"Follow four stories",storyNote:"Four fictional couples. Four ways to grow closer.",try:"Try your own Vibe",tryNote:"Your interests, a sample partner, and real cultural discoveries.",detail:"Cultural discovery by Qloo · Conversation with EVE",photo:"Leo and Julian looking through their memories in Wellington",cities:"Tokyo · New York · London · Wellington"},
+ zh:{settings:"设置",language:"语言",eyebrow:"两个人的共同世界",title:"从我，\n到我们。",body:"Qloo 从不同的喜好里发现文化联系，EVE 帮你们把它变成一起想做的事。",stories:"走进四个故事",storyNote:"四对虚构人物，四种慢慢靠近的方式。",try:"体验我的 Vibe",tryNote:"带上你的兴趣，和示例同伴发现可以一起喜欢的。",detail:"Qloo 发现文化共鸣 · EVE 陪你们一起聊",photo:"Leo 和 Julian 在惠灵顿一起翻看回忆",cities:"东京 · 纽约 · 伦敦 · 惠灵顿"}
 };
 export default function Home(){
  const [lang,setLang]=useState<"en"|"zh">("en");

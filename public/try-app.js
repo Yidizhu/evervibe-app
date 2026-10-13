@@ -24,6 +24,8 @@
   Object.assign(copy.en,{planExpired:'The details of this idea have expired. Clear the choice and ask for fresh ideas; your conversation is still here.',planInvalid:'This choice no longer matches the current Vibes. Clear it and ask for fresh ideas.'});
   Object.assign(copy.zh,{planExpired:'这项选择的资料已过期。取消这项选择，再找一组新灵感；聊天仍然保留。',planInvalid:'这项选择已不符合当前的 Vibe。取消后再找一组新灵感吧。'});
   const LANGUAGE_KEY='evervibe:language';
+  Object.assign(copy.en,{quickExample:'Try two different tastes',quickLoading:'Looking up two sample films…',quickReady:'Knives Out + Amélie, in New York. Share these sample Vibes to begin.',needYou:'Choose something you love first.',needPartner:'Open the demo connection or choose an interest for the sample partner.',needConsent:'Tick “Share these Vibes” beside Start together to continue.',consent:'Share these Vibes with EVE for this session',privacy:'Starting compares your selected interests with Qloo. Your notes and chat reach EVE when you send a message. Only your language preference is saved on this device.',bridgeTitle:'A little common ground',bridgeLoading:'Qloo is comparing both Vibes…',bridgeEmpty:'No shared themes returned this time. Your different tastes can still inspire a plan.',bridgeUnavailable:'Shared themes are unavailable right now. You can still plan from both Vibes.',bridgeSource:'Cultural themes from Qloo · not a relationship score',bridgeCache:'Recent Qloo comparison',firstIdea:'Could you find a cultural place in {city} that fits both our tastes? We want time to talk.'});
+  Object.assign(copy.zh,{quickExample:'试试两种不同的口味',quickLoading:'正在查找两部示例电影…',quickReady:'《利刃出鞘》＋《天使爱美丽》，地点纽约。共享这两份示例 Vibe 即可开始。',needYou:'先选一个你喜欢的事物。',needPartner:'打开示例相遇，或为示例同伴选一个兴趣。',needConsent:'勾选“本次与 EVE 共享这些 Vibe”，再开始一起体验。',consent:'本次与 EVE 共享这些 Vibe',privacy:'开始时由 Qloo 比较所选兴趣。发送消息后，你们的心情备注和聊天才交给 EVE。设备上只保存语言偏好。',bridgeTitle:'一点共同的喜欢',bridgeLoading:'Qloo 正在比较两份 Vibe…',bridgeEmpty:'这次没有返回共同主题。不同的喜欢也能带来一起尝试的灵感。',bridgeUnavailable:'共同主题暂时连接不上，仍可根据两人的兴趣安排。',bridgeSource:'文化主题来自 Qloo · 不是感情评分',bridgeCache:'最近的 Qloo 比较结果',firstIdea:'帮我们在{city}找个适合两人口味的文化去处吧，想留些时间聊聊天。'});
   function initialLocale() {
     const fromUrl=new URLSearchParams(location.search).get('lang');
     if(['en','zh'].includes(fromUrl))return fromUrl;
@@ -32,7 +34,8 @@
   }
   const state = {locale:initialLocale(),city:'tokyo',consent:false,started:false,everStarted:false,revision:0,speaker:'you',messages:[],plan:null,selected:null,confirmations:{you:false,partner:false},busy:false,error:null,status:null,setup:null,retry:false,connection:{opened:false,busy:false,status:null,error:false},
     vibes:{you:{entities:[],note:''},partner:{entities:[],note:''}},search:{you:{query:'',type:'movie',items:[],busy:false,error:null,searched:false},partner:{query:'',type:'movie',items:[],busy:false,error:null,searched:false}}};
-  const controllers = {you:null,partner:null,assist:null,connection:null};
+  state.bridge=null;state.bridgeBusy=false;state.exampleBusy=false;
+  const controllers = {you:null,partner:null,assist:null,connection:null,compare:null,example:null};
   const serials = {you:0,partner:0,assist:0,connection:0};
   const t = key => copy[state.locale][state.connection.opened&&['partner','partnerVibe','chatHeading'].includes(key)?key+'Demo':key] || key;
   function node(tag, className, text) { const el=document.createElement(tag); if(className)el.className=className; if(text!==undefined)el.textContent=text; return el; }
@@ -59,6 +62,37 @@
   function abortSearch(owner) {serials[owner]++;controllers[owner]?.abort();controllers[owner]=null;state.search[owner].busy=false;}
   function stopAssist() {serials.assist++;controllers.assist?.abort();controllers.assist=null;state.busy=false;}
   function stopConnectionSearch() {serials.connection++;controllers.connection?.abort();controllers.connection=null;state.connection.busy=false;}
+  function stopCompare(){controllers.compare?.abort();controllers.compare=null;state.bridgeBusy=false;state.bridge=null;renderBridge();}
+  function sharedInput(){return {locale:state.locale,city:state.city,consent:state.consent,vibes:Object.fromEntries(['you','partner'].map(owner=>[owner,{entities:state.vibes[owner].entities.map(item=>item.id),note:state.vibes[owner].note}]))};}
+  const tagZh={'Comedy':'喜剧','Stylized':'鲜明风格','Eccentric':'古灵精怪','Drama':'剧情','Romance':'浪漫','Romantic':'浪漫','Cinematic':'电影感','Cinématic':'电影感','Quirky':'别具一格','Thought-provoking':'引人思考','Atmospheric':'氛围感','Melancholic':'淡淡忧伤'};
+  function renderBridge(){
+    const card=$('taste-bridge');card.replaceChildren();card.hidden=!state.started||!state.consent||(!state.bridge&&!state.bridgeBusy);if(card.hidden)return;
+    card.append(node('h3','',t('bridgeTitle')));
+    if(state.bridgeBusy){card.append(node('p','fine',t('bridgeLoading')));return;}
+    const bridge=state.bridge;
+    if(bridge?.status==='ready'&&Array.isArray(bridge.shared)){
+      const inputs=node('div','bridge-inputs');for(const owner of ['you','partner'])inputs.append(node('span','',t(owner)+' · '+state.vibes[owner].entities.map(e=>e.title).join(' + ')));card.append(inputs);
+      const chips=node('div','bridge-tags');bridge.shared.slice(0,3).forEach(tag=>chips.append(node('span','',state.locale==='zh'?(tagZh[tag.name]||tag.name):tag.name)));card.append(chips,node('p','fine',t('bridgeSource')));
+      if(bridge.cached)card.append(node('p','fine',t('bridgeCache')));
+    }else{card.append(node('p','fine',t(bridge?.status==='empty'?'bridgeEmpty':'bridgeUnavailable')));if(bridge?.status!=='empty')card.append(button(t('retry'),()=>compareVibes(),'text-button'));}
+  }
+  async function compareVibes(){
+    if(!state.started||!state.consent)return;controllers.compare?.abort();const controller=new AbortController(),revision=state.revision;controllers.compare=controller;state.bridgeBusy=true;renderBridge();
+    try{const result=await post('/api/try/compare',sharedInput(),controller.signal);if(!controller.signal.aborted&&revision===state.revision&&state.consent)state.bridge=result;}
+    catch(error){if(!controller.signal.aborted&&revision===state.revision)state.bridge={status:'unavailable',shared:[]};}
+    finally{if(controllers.compare===controller){controllers.compare=null;state.bridgeBusy=false;renderBridge();}}
+  }
+  async function quickExample(){
+    if(state.exampleBusy||state.everStarted||state.vibes.you.entities.length||state.vibes.partner.entities.length)return;
+    const controller=new AbortController(),revision=state.revision;controllers.example=controller;state.exampleBusy=true;state.setup=null;renderControls();
+    try{
+      const choices=await Promise.all([['Knives Out',2019],['Amélie',2001]].map(async([query,year])=>{const result=await post('/api/try/search',{query,type:'movie',locale:state.locale},controller.signal);const film=result.items?.find(i=>i.title.toLowerCase()===query.toLowerCase()&&Number(i.year)===year);if(!film)throw Error('NOT_FOUND');return film;}));
+      if(controller.signal.aborted||revision!==state.revision)return;
+      state.vibes.you.entities=[choices[0]];state.vibes.partner.entities=[choices[1]];state.city='new-york';$('city').value=state.city;state.connection.opened=true;invalidate();state.setup='quickReady';
+      for(const owner of ['you','partner'])renderChips(owner);translate();$('consent').focus();
+    }catch(error){if(!controller.signal.aborted)state.setup='unavailable';}
+    finally{if(controllers.example===controller){controllers.example=null;state.exampleBusy=false;renderControls();}}
+  }
   function renderConnection() {
     const connection=state.connection;
     $('demo-connection').classList.toggle('opened',connection.opened);
@@ -93,6 +127,7 @@
     finally{if(token===serials.connection){state.connection.busy=false;controllers.connection=null;renderConnection();}}
   }
   function invalidate(reason='changed') {
+    stopCompare();
     const wasStarted=state.everStarted;
     stopAssist();state.revision++;state.started=false;state.selected=null;state.confirmations={you:false,partner:false};state.retry=false;state.error=null;state.status=null;state.setup=reason==='changed'&&!wasStarted?null:reason;
     if(state.plan)state.plan.expired=true;
@@ -151,9 +186,13 @@
   }
   function renderControls() {
     renderConnection();
+    $('quick-example').hidden=state.everStarted||!!state.vibes.you.entities.length||!!state.vibes.partner.entities.length;
+    $('quick-example').disabled=state.exampleBusy;$('quick-example').textContent=t(state.exampleBusy?'quickLoading':'quickExample');
     $('start').disabled=state.started;
     $('start').textContent=t(state.started?'active':'start');
     $('setup-status').textContent=state.setup?t(state.setup):'';
+    $('setup-status').classList.toggle('needs-action',['needYou','needPartner','needConsent'].includes(state.setup));
+    $('consent').setAttribute('aria-invalid',String(state.setup==='needConsent'));
     $('send').disabled=!state.started||state.busy||!state.consent;
     $('message').disabled=!state.started||!state.consent;
     $('cancel').hidden=!state.busy;
@@ -212,6 +251,7 @@
       if(typeof data.text!=='string'||!data.text.trim())throw new Error('INTERNAL_ERROR');
       state.messages.push({from:'eve',text:data.text,revision,sourceLang:data.sourceLang||body.locale});
       const items=Array.isArray(data.items)?data.items.filter(item=>item&&typeof item.id==='string'&&typeof item.title==='string').slice(0,3):[];
+      if(data.bridge){state.bridge=data.bridge;renderBridge();}
       if(items.length&&(!state.selected||data.replaceSelection===true)){state.plan={items,seeds:data.seeds||[],source:data.source,expired:false};state.selected=null;state.confirmations={you:false,partner:false};}
       renderMessages();renderPlan();
     }catch(error){if(token===serials.assist&&error.name!=='AbortError'){
@@ -229,18 +269,22 @@
     Array.from($('city').options).forEach(option=>option.textContent=t(option.value));
     Array.from($('speaker').options).forEach(option=>option.textContent=t(option.value));
     $('message').placeholder=t('messagePlaceholder');$('vibe-setup').setAttribute('aria-label',state.locale==='zh'?'Vibe 设置':'Vibe setup');
-    renderMessages();renderPlan();renderControls();
+    renderMessages();renderPlan();renderControls();renderBridge();
   }
   $('your-vibe').append(makeVibeCard('you'));$('partner-vibe').append(makeVibeCard('partner'));
+  $('quick-example').addEventListener('click',quickExample);
   $('open-demo').addEventListener('click',()=>{if(!state.vibes.you.entities.length)return;state.connection.opened=true;translate();loadDemoInterest();});
   $('retry-demo').addEventListener('click',()=>loadDemoInterest());
   $('language').addEventListener('change',event=>{state.locale=event.target.value;try{localStorage.setItem(LANGUAGE_KEY,state.locale);}catch{}const url=new URL(location.href);if(url.searchParams.has('lang')){url.searchParams.set('lang',state.locale);history.replaceState(null,'',url);}translate();});
   $('city').addEventListener('change',event=>{state.city=event.target.value;invalidate();});
-  $('consent').addEventListener('change',event=>{state.consent=event.target.checked;if(!state.consent)invalidate('withdrawn');else renderControls();});
+  $('consent').addEventListener('change',event=>{state.consent=event.target.checked;if(!state.consent)invalidate('withdrawn');else{state.setup=null;renderControls();}});
   $('speaker').addEventListener('change',event=>{state.speaker=event.target.value;renderPlan();});
   $('start').addEventListener('click',()=>{
-    if(!state.consent||!state.vibes.you.entities.length||!state.vibes.partner.entities.length){state.setup='incomplete';renderControls();return;}
-    state.started=true;state.everStarted=true;state.setup='ready';state.status=null;renderControls();$('message').focus();
+    if(!state.vibes.you.entities.length){state.setup='needYou';renderControls();$('you-query').focus();return;}
+    if(!state.vibes.partner.entities.length){state.setup='needPartner';renderControls();$('open-demo').focus();return;}
+    if(!state.consent){state.setup='needConsent';renderControls();$('consent').focus();return;}
+    state.started=true;state.everStarted=true;state.setup='ready';state.status=null;renderControls();compareVibes();
+    if(!state.messages.length&&!$('message').value)$('message').value=t('firstIdea').replace('{city}',t(state.city));$('message').focus();
   });
   $('chat-form').addEventListener('submit',event=>{
     event.preventDefault();const text=$('message').value.trim();if(!text||state.busy||!state.started||!state.consent)return;
@@ -251,6 +295,7 @@
   $('cancel').addEventListener('click',()=>{stopAssist();state.status='cancelled';state.retry=true;renderControls();renderPlan();});
   $('retry').addEventListener('click',()=>assist());
   $('reset').addEventListener('click',()=>{
+    controllers.example?.abort();controllers.example=null;state.exampleBusy=false;stopCompare();
     stopAssist();stopConnectionSearch();state.connection={opened:false,busy:false,status:null,error:false};$('manual-vibes').open=false;for(const owner of ['you','partner']){abortSearch(owner);state.vibes[owner]={entities:[],note:''};state.search[owner]={query:'',type:'movie',items:[],busy:false,error:null,searched:false};$(owner+'-query').value='';$(owner+'-type').value='movie';$(owner+'-note').value='';}
     state.city='tokyo';state.consent=false;state.started=false;state.everStarted=false;state.revision++;state.speaker='you';state.messages=[];state.plan=null;state.selected=null;state.confirmations={you:false,partner:false};state.error=null;state.status=null;state.setup=null;state.retry=false;
     $('city').value='tokyo';$('consent').checked=false;$('speaker').value='you';$('message').value='';translate();$('you-query').focus();
