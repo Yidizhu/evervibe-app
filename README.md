@@ -56,10 +56,12 @@ node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1
 Then start the built Worker:
 
 ```sh
-npm start -- --port 5173 --env-file .env.local
+npm start -- --port 5173 --env-file "/absolute/path/to/your/project/.env.local"
 ```
 
-Open `http://127.0.0.1:5173/`. To inspect authored UI without credentials, omit `--env-file .env.local`; live requests will report that services are unavailable. `/api/status` reports configuration status without returning credentials.
+Replace the quoted path with the absolute path to your own `.env.local` (on Windows, for example `C:/your-project/.env.local`). Wrangler resolves relative env-file paths against its generated configuration directory, so use an absolute path here.
+
+Open `http://127.0.0.1:5173/`. To inspect authored UI without credentials, omit `--env-file` and its path; live requests will report that services are unavailable. `/api/status` reports configuration status without returning credentials.
 
 ## Development
 
