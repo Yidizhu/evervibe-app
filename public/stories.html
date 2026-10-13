@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EverVibe · A world for two</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="stages.css">
+<link rel="stylesheet" href="story.css">
+</head>
+<body>
+<header class="masthead"><a class="brand" href="#" data-i18n-aria="app.home"><span class="mark">❧</span> EverVibe</a><div class="prototype-label"><span class="dot"></span><span data-i18n="app.experience">Story experience</span></div><div class="header-actions"><select id="language" data-language aria-label="Language"><option value="en">English</option><option value="zh">中文</option></select><button class="text-btn" id="reset" data-i18n="app.reset">Start over</button></div></header>
+<main>
+<div class="chapter-switch" role="group" data-i18n-aria="app.stages"><button data-chapter="1"><span data-i18n="app.stage1">First meeting</span><small data-i18n="app.seed">Seed</small></button><button data-chapter="2"><span data-i18n="app.stage2">Growing closer</span><small data-i18n="app.sprout">Sprout</small></button><button data-chapter="3"><span data-i18n="app.stage3">Life together</span><small data-i18n="app.youngTree">Young tree</small></button><button data-chapter="4"><span data-i18n="app.stage4">Lasting love</span><small data-i18n="app.memories">A tree of memories</small></button></div>
+<div class="chapter-caption"><span id="chapter-note"></span><div id="episode-switch" role="group" data-i18n-aria="app.episodes"></div><div id="time-control" data-i18n-aria="app.time"></div></div>
+<div class="mobile-switch" role="group" data-i18n-aria="app.roles"><span class="switch-label" data-i18n="app.role">Perspective</span><button data-mobile="leo" class="selected" aria-pressed="true">Kenji</button><button data-mobile="julian" aria-pressed="false">Anya</button></div>
+<section class="duo" data-i18n-aria="app.currentScreen"><article class="person leo" id="leo"></article><article class="person julian" id="julian"></article></section>
+</main>
+<dialog id="hint-dialog" aria-labelledby="hint-title"><form id="hint-form">
+<div class="dialog-top"><span class="small-label" data-i18n="hint.eyebrow"></span><select id="hint-language" data-language><option value="en">English</option><option value="zh">中文</option></select><button type="button" class="icon-btn" id="close-hint" data-i18n-aria="hint.close">×</button></div>
+<h2 id="hint-title" data-i18n="hint.title"></h2><p class="recipient" id="hint-recipient"></p>
+<label for="hint-style" data-i18n="hint.style"></label><select id="hint-style"><option value="subtle" data-i18n="hint.subtle"></option><option value="direct" data-i18n="hint.direct"></option></select>
+<label for="hint-text" data-i18n="hint.complete"></label><textarea id="hint-text" rows="4" maxlength="500" required></textarea><p class="hint-badge" data-i18n="hint.badge"></p>
+<div class="hint-boundaries"><p><strong data-i18n="hint.meaning"></strong><span id="hint-meaning"></span></p><p><strong data-i18n="hint.keep"></strong><span id="hint-keep"></span></p></div>
+<details><summary data-i18n="hint.optional"></summary><label class="check-row"><input type="checkbox" id="plan-consent"><span data-i18n="hint.consent"></span></label><input id="plan-summary" data-i18n-aria="hint.summary" maxlength="200" disabled></details>
+<p class="error" id="hint-error" role="alert"></p><div class="dialog-actions"><button type="button" class="secondary" id="cancel-hint" data-i18n="hint.cancel"></button><button type="submit" class="primary" data-i18n="hint.send"></button></div></form></dialog>
+<dialog id="reset-dialog"><h2 data-i18n="reset.title"></h2><p data-i18n="reset.body"></p><div class="dialog-actions"><button class="secondary" id="cancel-reset" data-i18n="reset.cancel"></button><button class="primary" id="confirm-reset" data-i18n="reset.confirm"></button></div></dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="story-data.js"></script>
+<script src="story-data-en.js"></script>
+<script src="ui-messages.js"></script>
+<script src="i18n-core.js"></script>
+<script src="tree3d.js"></script>
+<script src="blackbox3d.js"></script>
+<script src="story-views.js"></script>
+<script src="story-app.js"></script>
+<script src="recording-mode.js"></script>
+<script type="importmap">{"imports":{"three":"/vendor/three/build/three.module.js","three/addons/":"/vendor/three/examples/jsm/"}}</script>
+<script type="module" src="tripo-integration.js"></script>
+</body></html>
+
+
