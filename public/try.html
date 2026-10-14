@@ -57,9 +57,13 @@
       <p class="fine" data-i18n="privacy">Starting compares your selected interests with Qloo. Your notes and chat reach EVE when you send a message. Only your language preference is saved on this device.</p>
       <p id="setup-status" class="setup-status" role="status" aria-live="polite" tabindex="-1"></p>
     </details>
+    <div class="perspective-bar" id="perspective-bar" hidden><span data-i18n="perspective">Perspective</span><button type="button" data-person="you">You</button><button type="button" data-person="partner">Anya (demo)</button></div>
     <section class="conversation" aria-labelledby="chat-heading">
-      <div class="conversation-head"><span class="eve-orb" aria-hidden="true">E</span><div><h2 id="chat-heading" data-i18n="chatHeading">Your shared space</h2><p id="shared-participants" class="fine"></p></div></div>
-      <div class="shared-space-nav"><span data-i18n="makePlans" class="active">Make plans</span><button id="edit-vibes" class="text-button" type="button" data-i18n="editVibes">Vibes &amp; location</button></div>
+      <div class="conversation-head"><span class="eve-orb" id="view-avatar" aria-hidden="true">Y</span><div><h2 id="chat-heading">Your view</h2><p id="shared-participants" class="fine"></p></div></div>
+      <div class="shared-space-nav" role="tablist" aria-label="Your space"><button id="chat-tab" type="button" role="tab" aria-controls="conversation-content" data-i18n="chatTab">Chat</button><button id="plans-tab" type="button" role="tab" aria-controls="conversation-content" data-i18n="makePlans">Make plans</button><button id="edit-vibes" class="text-button" type="button" data-i18n="settings">Settings</button></div>
+      <div id="conversation-content" role="tabpanel" aria-labelledby="chat-tab">
+      <div class="chat-switch" id="chat-switch" role="tablist" aria-label="Chat with"><button id="private-tab" type="button" role="tab" aria-controls="messages" data-i18n="privateTab">Private chat with EVE</button><button id="direct-tab" type="button" role="tab" aria-controls="messages">Chat with Anya</button></div>
+      <p id="scope-note" class="scope-note"></p>
       <div id="taste-bridge" aria-live="polite" hidden></div>
       <div id="messages" class="messages" role="log" aria-live="polite" aria-relevant="additions"></div>
       <div id="recommendations"></div>
@@ -70,6 +74,7 @@
         <div class="composer"><label class="visually-hidden" for="message" data-i18n="message">Message</label><textarea id="message" rows="2" maxlength="1500" placeholder="What would feel good to do together?"></textarea><button id="send" class="primary" type="submit" data-i18n="send">Send</button></div>
         <div class="request-actions"><button id="cancel" class="text-button" type="button" data-i18n="cancel" hidden>Cancel response</button><button id="retry" class="text-button" type="button" data-i18n="retry" hidden>Try again</button></div>
       </form>
+      </div>
     </section>
     <footer><span data-i18n="sessionOnly">Your session, here and now.</span><button id="reset" class="text-button" data-i18n="reset">Reset this session</button></footer>
   </main>

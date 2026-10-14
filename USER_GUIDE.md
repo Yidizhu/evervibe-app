@@ -6,17 +6,19 @@ EverVibe helps two people turn the things they love into something to do, discus
 
 Open **Try your own Vibe** from the home page, or visit `/try.html`.
 
-For a quick start, select **Try two different tastes**. It looks up *Knives Out* and *Amélie*, selects New York City and fills two sample Vibes. Review the sharing checkbox and press **Start together**. Qloo's shared themes appear immediately; a suggested first question is placed in the composer for you to send or edit.
+For a quick start, select **Try two different tastes**. It looks up *Knives Out* and *Amélie*, selects New York City and fills two sample Vibes. Review the sharing checkbox and press **Start together**. You enter the same three conversation spaces as the stories: private EVE chat, direct chat, and **Make plans**. Qloo's shared themes and an editable first question are in **Make plans**.
 
 1. **Choose something you love.** Search for a film, artist or book, then add an actual search result to **Your Vibe**. You can select up to three interests.
 2. **Open a demo connection.** The black box introduces Anya, a fictional sample partner, with her photograph and interests. Her sample film is added only if the catalog returns the matching title and year. You can open **Edit the sample Vibe yourself** to change her interests or add a note about what she would enjoy today.
-3. **Start together.** Choose a city, or click **Use my location** and grant browser permission for nearby ideas. Select **Share these Vibes with EVE for this session**, then press **Start together**. If a step is missing, the page explains what to do and focuses that control. **A little common ground** displays cultural themes Qloo found across the two Vibes, when available. Setup folds away so the shared conversation takes the focus; **Vibes & location** reopens it, including the sharing choice.
-4. **Speak from both sides.** Tell EVE what you would enjoy. Change **Speaking as** to add the sample partner's wishes. For example: “I'd love to discover some art” and “One stop sounds good. I'd like time to talk afterwards.” You write both sides; Anya is not another person online.
+3. **Start together.** Choose a city, or click **Use my location** and grant browser permission for nearby ideas. Select **Share these Vibes with EVE for this session**, then press **Start together**. If a step is missing, the page explains what to do and focuses that control. Setup folds away; the space's **Settings** button reopens it, including the sharing choice.
+4. **Try all three spaces.** Under **Chat**, use **Private chat with EVE** for live personal advice, or **Chat with Anya** to write directly. Use the **Perspective** buttons to switch to Anya and enter her reply. Each person has a separate EVE thread; direct chat has only the messages you enter, with no automated partner replies. **Make plans** contains the shared Qloo-assisted conversation. For example, one person can say “I'd love to discover some art” and the other “One stop sounds good. I'd like time to talk afterwards.” You write both sides; Anya is not another person online.
 5. **Choose a shared idea.** Ask EVE to help plan. Open **Why these suggestions?** to see the cultural starting points. Select a candidate and confirm from both roles. You can ask a follow-up about that choice without clearing either confirmation. Ask explicitly for new or different recommendations when you want to replace it.
 
 The black box always introduces the same fictional character. Your interests influence cultural planning; they do not search for or rank real romantic partners. Qloo provides the cultural candidates, and EVE connects them to what the two people have expressed.
 
 Choosing a place saves an idea for this session. It does not book a table, buy a ticket or create an order.
+
+You can ask private EVE for help even before sharing Vibes. The partner's selected interests and shared mood note enter that request only after starting the shared session. Private transcripts are never forwarded to direct chat or shared planning. **Write to Anya** opens the direct composer without sending EVE's advice. Switching spaces, roles or interface language keeps messages and separate drafts during this page session. Closing a pending EVE window cancels that request; its message remains and can be retried.
 
 ## Explore the four stories
 

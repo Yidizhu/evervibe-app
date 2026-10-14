@@ -9,7 +9,7 @@ function fixture(extra={}){
  const qloo={status:()=>({qloo:{configured:true}}),recommend:call('qloo')};
  const gemini={status:()=>({configured:true}),chat:call('gemini')};
  const planner={plan:call('plan'),assist:call('assist'),getPlan:(id,episode)=>({id,episode,source:'qloo'})};
- const proactive={greet:call('proactive')},tryService={search:call('search'),assist:call('try')};
+ const proactive={greet:call('proactive')},tryService={search:call('search'),compare:call('compare'),privateChat:call('private'),assist:call('try')};
  const validateChat=input=>{if(input.consent!==true)throw Object.assign(new Error('Private reason'),{status:403,code:'CONSENT_REQUIRED'});};
  return {calls,handle:createApiHandler({qloo,gemini,planner,proactive,tryService,validateChat,allowedOrigins:[origin],...extra})};
 }
@@ -24,7 +24,7 @@ const code=async response=>(await response.json()).error.code;
 test('Fetch handler serves all old and new API routes and keeps chat plan composition',async()=>{
  const f=fixture();
  const status=await f.handle(request('/api/status',null,{method:'GET'}));assert.equal(status.status,200);assert.equal((await status.json()).gemini.configured,true);
- for(const [route,name] of [['/api/recommend','qloo'],['/api/eve/plan','plan'],['/api/eve/assist','assist'],['/api/eve/proactive','proactive'],['/api/try/search','search'],['/api/try/assist','try']]){
+ for(const [route,name] of [['/api/recommend','qloo'],['/api/eve/plan','plan'],['/api/eve/assist','assist'],['/api/eve/proactive','proactive'],['/api/try/search','search'],['/api/try/compare','compare'],['/api/try/private','private'],['/api/try/assist','try']]){
   const result=await f.handle(request(route,{locale:'zh'}));assert.equal(result.status,200);assert.equal((await result.json()).name,name);assert.equal(f.calls.at(-1).input.locale,'zh');
  }
  assert.equal((await f.handle(request('/api/eve/chat',{consent:false,recommendationMode:'common'}))).status,403);

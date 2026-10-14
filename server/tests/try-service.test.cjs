@@ -14,6 +14,7 @@ function fixture(options={}){
  const gemini={structured:async(system,context,schema,{signal})=>{
   sent.push({system,context,schema,signal});if(options.onGemini)await options.onGemini({system,context,schema,signal});
   if(schema.properties.intent)return route();
+  if(!schema.properties.selections)return Object.hasOwn(options,'privateReply')?options.privateReply:{text:'You could ask which song they would put on for a slow walk together.'};
   return options.curated||{text:'Try a relaxed stop together.',selections:[{id:ids.place,reason:'Your film and music interests give you something to exchange.',activity:'Choose one song and one scene to tell each other about.',title:'INVENTED_TITLE',address:'INVENTED_ADDRESS'}]};
  }};
  const fetch=async(url,init)=>{
@@ -92,6 +93,106 @@ test('invalid cities, bounds and messages never call a provider',async()=>{
 test('chat needs no fresh Qloo call and never invents companion messages',async()=>{
  const f=fixture({route:{intent:'chat',text:'Tell me what would make tonight feel easier.'}});await f.seed();const result=await f.service.assist(request());
  assert.equal(result.kind,'chat');assert.equal(result.source,'gemini');assert.equal(f.calls.length,0);assert.deepEqual(result.items,[]);assert.equal(result.messages,undefined);
+});
+
+const privateRequest=(actor='you')=>({locale:'en',actor,partnerShared:false,vibes:request().vibes,messages:[{from:actor,text:'PRIVATE_THREAD_CANARY: I want to suggest something thoughtful.'}]});
+
+test('private EVE uses only the speaking perspective and ignores every unshared partner field',async()=>{
+ for(const actor of ['you','partner']){
+  const f=fixture();await f.seed();const input=privateRequest(actor),other=actor==='you'?'partner':'you';
+  input.vibes[other]={entities:['MALFORMED_UNSHARED_ENTITY'],note:'UNSHARED_NOTE_CANARY',privateNote:'STORED_PRIVATE_CANARY'};
+  input.vibes[actor].profile='FAKE_FIXED_PROFILE';input.vibes[actor].privateMessages=['OTHER_THREAD_CANARY'];
+  input.episode='meet';input.scopes=['PROFILE_SCOPE_CANARY'];input.privateNote='TOP_LEVEL_PRIVATE_CANARY';
+  input.messages[0].partnerMessage='EMBEDDED_OTHER_THREAD_CANARY';input.location={lat:12.345,lon:67.89};
+  const result=await f.service.privateChat(input);
+  assert.deepEqual(result,{text:'You could ask which song they would put on for a slow walk together.',source:'gemini',sourceLang:'en'});
+  assert.equal(f.calls.length,0);assert.equal(f.sent.length,1);
+  const context=f.sent[0].context;
+  assert.equal(context.actor,actor);assert.equal(context.scope,'private');assert.equal(context.sharedPartnerVibe,undefined);
+  assert.equal(context.ownVibe.entities[0].title,actor==='you'?'Provider Film':'Provider Artist');
+  assert.equal(context.ownVibe.note,actor==='you'?'PRIVATE_NOTE_YOU':'PRIVATE_NOTE_PARTNER');
+  assert.equal(context.messages[0].from,actor);
+  const forwarded=JSON.stringify(context);
+  for(const text of ['MALFORMED_UNSHARED_ENTITY','UNSHARED_NOTE_CANARY','STORED_PRIVATE_CANARY','FAKE_FIXED_PROFILE','OTHER_THREAD_CANARY','PROFILE_SCOPE_CANARY','TOP_LEVEL_PRIVATE_CANARY','12.345'])assert(!forwarded.includes(text));
+ }
+});
+
+test('private EVE includes only consented partner catalog facts and cannot populate shared assistance from its private thread',async()=>{
+ const f=fixture({route:{intent:'chat',text:'What would you like to plan together?'}});await f.seed();
+ const input={...privateRequest(),partnerShared:true,locale:'zh'};
+ input.vibes.partner.title='INVENTED_PARTNER_TITLE';input.vibes.partner.privateNote='PARTNER_PRIVATE_CANARY';
+ const result=await f.service.privateChat(input);assert.equal(result.sourceLang,'zh');
+ assert.equal(f.sent[0].context.sharedPartnerVibe.entities[0].title,'Provider Artist');
+ assert.equal(f.sent[0].context.sharedPartnerVibe.note,'PRIVATE_NOTE_PARTNER');
+ assert(!JSON.stringify(f.sent[0].context).includes('INVENTED_PARTNER_TITLE'));assert(!JSON.stringify(f.sent[0].context).includes('PARTNER_PRIVATE_CANARY'));
+ assert.match(f.sent[0].system,/unspoken love/);assert.match(f.sent[0].system,/never send it/);assert.match(f.sent[0].system,/Do not invent real venues/);
+ await f.service.assist(request());assert.equal(f.calls.length,0);
+ assert(!JSON.stringify(f.sent[1].context).includes('PRIVATE_THREAD_CANARY'));
+ assert.equal(f.sent[1].context.messages[0].text,'SHARED_TEXT_CAFE');
+});
+
+test('private chat works before onboarding without a Qloo key or selected interests',async()=>{
+ const f=fixture({env:{QLOO_API_KEY:''}}),input=privateRequest();
+ input.vibes={you:{entities:[],note:''}};
+ assert.equal((await f.service.privateChat(input)).source,'gemini');
+ assert.equal(f.calls.length,0);assert.deepEqual(f.sent[0].context.ownVibe,{entities:[],note:''});
+});
+
+test('private chat rejects mixed threads and malformed requests before catalog or model work',async()=>{
+ let catalogReads=0;
+ const f=fixture({service:{catalogStore:{get:async()=>{catalogReads++;return null;},set:async()=>{}}}});
+ for(const change of [
+  {actor:'eve'},{locale:'fr'},{partnerShared:'yes'},{messages:[]},
+  {messages:[{from:'partner',text:'OTHER_PRIVATE_THREAD'}]},
+  {messages:[{from:'you',text:'My words'},{from:'partner',text:'Their private words'},{from:'you',text:'My follow-up'}]},
+  {messages:[{from:'eve',text:'Assistant cannot speak last'}]},
+  {messages:[{from:'you',text:'\u0000\u0007'}]},
+  {messages:[{from:'you',text:'x'.repeat(1501)}]},
+  {messages:Array.from({length:21},()=>({from:'you',text:'x'}))},
+  {vibes:{you:{entities:[ids.film,ids.film],note:''}}},
+  {vibes:{you:{entities:[],note:'x'.repeat(161)}}}
+ ])await assert.rejects(f.service.privateChat({...privateRequest(),...change}),{code:'BAD_REQUEST'});
+ assert.equal(catalogReads,0);assert.equal(f.sent.length,0);assert.equal(f.calls.length,0);
+});
+
+test('private chat validates shared interests but never looks up a withheld profile',async()=>{
+ const f=fixture();await f.seed();const input=privateRequest();
+ input.vibes.partner.entities=[ids.other];
+ await f.service.privateChat(input);assert.equal(f.sent.length,1);
+ await assert.rejects(f.service.privateChat({...input,partnerShared:true}),{code:'TRY_INTEREST_EXPIRED'});
+ input.vibes.you.entities=[ids.other];await assert.rejects(f.service.privateChat(input),{code:'TRY_INTEREST_EXPIRED'});
+ assert.equal(f.sent.length,1);assert.equal(f.calls.length,0);
+});
+
+test('private chat reads only verified public catalog fields across service instances',async()=>{
+ const gets=[],store=new Map();
+ const shared={set:async(id,entry)=>store.set(id,entry),get:async id=>{gets.push(id);return store.get(id);}};
+ const first=fixture({service:{catalogStore:shared}});await first.seed();
+ store.get(ids.film).item.privateNote='STORE_PRIVATE_CANARY';
+ const second=fixture({service:{catalogStore:shared}}),input=privateRequest();
+ delete input.vibes.partner;await second.service.privateChat(input);
+ assert.deepEqual(gets,[ids.film]);assert.equal(second.calls.length,0);
+ assert.equal(second.sent[0].context.ownVibe.entities[0].title,'Provider Film');
+ assert(!JSON.stringify(second.sent[0].context).includes('STORE_PRIVATE_CANARY'));
+});
+
+test('private chat cancellation and timeout never return a late reply or call Qloo',async()=>{
+ const f=fixture();await f.seed();const before=new AbortController();before.abort();
+ await assert.rejects(f.service.privateChat(privateRequest(),{signal:before.signal}),{code:'TRY_CANCELLED'});assert.equal(f.sent.length,0);
+ const during=new AbortController(),g=fixture({onGemini:()=>during.abort()});await g.seed();
+ await assert.rejects(g.service.privateChat(privateRequest(),{signal:during.signal}),{code:'TRY_CANCELLED'});
+ const h=fixture({onGemini:()=>new Promise(()=>{}),service:{geminiTimeoutMs:10}});await h.seed();
+ await assert.rejects(h.service.privateChat(privateRequest()),{code:'GEMINI_TIMEOUT'});
+ assert.equal(h.sent.length,1);assert.equal(f.calls.length+g.calls.length+h.calls.length,0);
+});
+
+test('private chat provider failures and malformed replies return bounded public errors',async()=>{
+ for(const reply of [null,{}, {text:''},{text:'   '},{text:123}]){
+  const f=fixture({privateReply:reply});await f.seed();await assert.rejects(f.service.privateChat(privateRequest()),{code:'GEMINI_EMPTY_REPLY'});assert.equal(f.calls.length,0);
+ }
+ const f=fixture({onGemini:()=>{throw new Error('SECRET_PROVIDER_DETAIL');}});await f.seed();
+ await assert.rejects(f.service.privateChat(privateRequest()),error=>error.code==='GEMINI_UNAVAILABLE'&&!error.message.includes('SECRET'));
+ const unavailable=createTryService();await assert.rejects(unavailable.privateChat({...privateRequest(),vibes:{you:{entities:[],note:''}}}),{code:'GEMINI_NOT_CONFIGURED'});
 });
 
 test('Gemini hallucinated or repeated choice IDs reject instead of becoming provider facts',async()=>{

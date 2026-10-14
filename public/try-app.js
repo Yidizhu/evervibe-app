@@ -24,6 +24,8 @@
   Object.assign(copy.en,{planExpired:'The details of this idea have expired. Clear the choice and ask for fresh ideas; your conversation is still here.',planInvalid:'This choice no longer matches the current Vibes. Clear it and ask for fresh ideas.'});
   Object.assign(copy.zh,{planExpired:'这项选择的资料已过期。取消这项选择，再找一组新灵感；聊天仍然保留。',planInvalid:'这项选择已不符合当前的 Vibe。取消后再找一组新灵感吧。'});
   const LANGUAGE_KEY='evervibe:language';
+  Object.assign(copy.en,{chatTab:'Chat',privateTab:'Private chat with EVE',directTab:'Chat with {name}',perspective:'Perspective',yourView:'Your view',partnerView:'{name}’s view',withPartner:'Your space with {name}',privateScope:'Just between you and EVE',directScope:'Your conversation together',groupScope:'You, {name} and EVE',privateEmpty:'What’s on your mind? A feeling, a little hesitation, or something you’d love to share.',directEmpty:'Say hello. Sometimes one small question is all it takes.',privatePlaceholder:'Tell EVE what’s on your mind…',directPlaceholder:'Write to {name}…',privateBusy:'EVE is listening…',connectionNeeded:'Open a demo connection to start this conversation.',privateIdea:'I’d like to get to know them, but I don’t know how to start.',writeTogether:'Write to {name}',privateReady:'You can talk to EVE here. Shared plans are one tab away.',privatePrivacy:'Private EVE messages stay in their own window. Only messages sent in Make plans enter the shared EVE conversation.'});
+  Object.assign(copy.zh,{chatTab:'聊聊',privateTab:'和 EVE 私聊',directTab:'和{name}聊天',perspective:'体验身份',yourView:'我的视角',partnerView:'{name}的视角',withPartner:'与{name}的空间',privateScope:'只在你和 EVE 之间',directScope:'你们两个人的聊天',groupScope:'我、{name}和 EVE',privateEmpty:'有什么想和 EVE 聊聊的？一点心动、一点犹豫，或者想一起做的事。',directEmpty:'打个招呼吧。也许一个小问题，就能开始。',privatePlaceholder:'告诉 EVE 你的想法…',directPlaceholder:'给{name}写一句话…',privateBusy:'EVE 在听…',connectionNeeded:'先打开一个示例相遇，就能开始聊天。',privateIdea:'我想更了解对方，但不知道怎么开口。',writeTogether:'给{name}写句话',privateReady:'可以在这里和 EVE 聊聊，也可以切换到一起安排。',privatePrivacy:'EVE 私聊保留在各自窗口。只有在“一起安排”发送的消息会进入共同 EVE 对话。'});
   Object.assign(copy.en,{setupTitle:'Vibes & location',editVibes:'Vibes & location',makePlans:'Make plans',chatHeading:'Your shared space',chatHeadingDemo:'Your shared space',sharingOn:'Vibes shared · edit',sharingOff:'Vibe sharing is off · edit',useLocation:'Use my location',locating:'Finding your location…',nearMe:'Near me',locationReady:'Using your approximate location for nearby ideas.',locationDenied:'Location was not allowed. You can choose a city instead.',locationUnavailable:'Location could not be found. You can choose a city instead.',locationTimeout:'Location took too long. Try again or choose a city.',clearLocation:'Use selected city',firstIdeaNearby:'Could you find a cultural place nearby that fits both our tastes? We want time to talk.'});
   Object.assign(copy.zh,{setupTitle:'Vibe 与地点',editVibes:'Vibe 与地点',makePlans:'一起安排',chatHeading:'我们的共同空间',chatHeadingDemo:'我们的共同空间',sharingOn:'Vibe 已共享 · 修改',sharingOff:'Vibe 共享已关闭 · 修改',useLocation:'使用我的位置',locating:'正在获取位置…',nearMe:'我的附近',locationReady:'将使用大致位置寻找附近的安排。',locationDenied:'未允许定位，可以手动选择城市。',locationUnavailable:'暂时无法获取位置，可以手动选择城市。',locationTimeout:'定位超时，可以重试或手动选择城市。',clearLocation:'使用所选城市',firstIdeaNearby:'帮我们在附近找个适合两人口味的文化去处吧，想留些时间聊聊天。'});
   copy.en.fallbackCity='Fallback city';copy.zh.fallbackCity='备用城市';
@@ -38,12 +40,42 @@
   const state = {locale:initialLocale(),city:'tokyo',consent:false,started:false,everStarted:false,revision:0,speaker:'you',messages:[],plan:null,selected:null,confirmations:{you:false,partner:false},busy:false,error:null,status:null,setup:null,retry:false,connection:{opened:false,busy:false,status:null,error:false},
     vibes:{you:{entities:[],note:''},partner:{entities:[],note:''}},search:{you:{query:'',type:'movie',items:[],busy:false,error:null,searched:false},partner:{query:'',type:'movie',items:[],busy:false,error:null,searched:false}}};
   state.bridge=null;state.bridgeBusy=false;state.exampleBusy=false;state.location=null;state.locationBusy=false;state.locationStatus=null;state.locationEpoch=0;
+  state.view='private';state.privateMessages={you:[],partner:[]};state.directMessages=[];state.drafts={};
   const controllers = {you:null,partner:null,assist:null,connection:null,compare:null,example:null};
   const serials = {you:0,partner:0,assist:0,connection:0};
   const t = key => copy[state.locale][state.connection.opened&&['partner','partnerVibe','chatHeading'].includes(key)?key+'Demo':key] || key;
   function node(tag, className, text) { const el=document.createElement(tag); if(className)el.className=className; if(text!==undefined)el.textContent=text; return el; }
   function button(text, action, className='') {const el=node('button',className,text);el.type='button';el.addEventListener('click',action);return el;}
   function label(key, htmlFor, cls='field-label') {const el=node('label',cls);el.dataset.i18n=key;el.htmlFor=htmlFor;return el;}
+  const otherPerson=()=>state.speaker==='you'?'partner':'you';
+  const otherName=()=>state.speaker==='partner'?(state.locale==='zh'?'体验者':'the visitor'):t('partner');
+  const threadKey=()=>state.view+':'+state.speaker;
+  const currentMessages=()=>state.view==='private'?state.privateMessages[state.speaker]:state.view==='direct'?state.directMessages:state.messages;
+  const canWrite=()=>state.view==='plans'?state.started&&state.consent:state.view==='direct'?state.connection.opened:state.speaker==='you'||state.connection.opened;
+  function changeSpace(view=state.view,speaker=state.speaker){
+    state.drafts[threadKey()]=$('message').value;stopAssist();state.view=view;state.speaker=speaker;state.error=null;state.status=null;
+    state.retry=view!=='direct'&&currentMessages().at(-1)?.from===speaker;
+    $('speaker').value=speaker;$('message').value=state.drafts[threadKey()]||'';
+    renderControls();renderMessages();renderPlan();renderBridge();
+  }
+  function renderSpace(){
+    const plans=state.view==='plans',direct=state.view==='direct',other=otherName();
+    $('perspective-bar').hidden=!state.connection.opened;
+    document.querySelectorAll('[data-person]').forEach(el=>{el.textContent=t(el.dataset.person);el.setAttribute('aria-pressed',String(el.dataset.person===state.speaker));});
+    $('chat-heading').textContent=state.speaker==='you'?t('yourView'):t('partnerView').replace('{name}',t('partner'));
+    const avatar=$('view-avatar');avatar.replaceChildren();
+    if(state.speaker==='partner'&&state.connection.opened){const photo=node('img');photo.src='/assets/people/anya-v2.png';photo.alt='';avatar.append(photo);}else avatar.textContent=state.locale==='zh'?'我':'Y';
+    $('shared-participants').textContent=state.connection.opened?t('withPartner').replace('{name}',other):t('privateScope');
+    $('chat-tab').classList.toggle('active',!plans);$('chat-tab').setAttribute('aria-selected',String(!plans));
+    $('plans-tab').classList.toggle('active',plans);$('plans-tab').setAttribute('aria-selected',String(plans));
+    $('conversation-content').setAttribute('aria-labelledby',plans?'plans-tab':'chat-tab');
+    $('chat-switch').hidden=plans;$('private-tab').setAttribute('aria-selected',String(!direct));$('direct-tab').setAttribute('aria-selected',String(direct));
+    $('direct-tab').textContent=t('directTab').replace('{name}',other);$('direct-tab').hidden=!state.connection.opened;
+    $('scope-note').textContent=t(plans?'groupScope':direct?'directScope':'privateScope').replace('{name}',t('partner'));
+    $('message').placeholder=t(plans?'messagePlaceholder':direct?'directPlaceholder':'privatePlaceholder').replace('{name}',other);
+    $('recommendations').hidden=!plans;
+    document.querySelector('.speaker-row').hidden=true;
+  }
   function errorKey(code) {
     if(code==='TRY_INTEREST_EXPIRED')return 'interestExpired';
     if(code==='TRY_PLAN_EXPIRED')return 'planExpired';
@@ -83,7 +115,7 @@
   }
   const tagZh={'Comedy':'喜剧','Stylized':'鲜明风格','Eccentric':'古灵精怪','Drama':'剧情','Romance':'浪漫','Romantic':'浪漫','Cinematic':'电影感','Cinématic':'电影感','Quirky':'别具一格','Thought-provoking':'引人思考','Atmospheric':'氛围感','Melancholic':'淡淡忧伤'};
   function renderBridge(){
-    const card=$('taste-bridge');card.replaceChildren();card.hidden=!state.started||!state.consent||(!state.bridge&&!state.bridgeBusy);if(card.hidden)return;
+    const card=$('taste-bridge');card.replaceChildren();card.hidden=state.view!=='plans'||!state.started||!state.consent||(!state.bridge&&!state.bridgeBusy);if(card.hidden)return;
     card.append(node('h3','',t('bridgeTitle')));
     if(state.bridgeBusy){card.append(node('p','fine',t('bridgeLoading')));return;}
     const bridge=state.bridge;
@@ -206,7 +238,7 @@
     renderConnection();
     document.body.classList.toggle('session-started',state.everStarted);
     $('sharing-summary').textContent=t(state.consent?'sharingOn':'sharingOff');
-    $('shared-participants').textContent=[t('you'),t('partner'),'EVE'].join(' · ');
+    renderSpace();
     $('use-location').disabled=state.locationBusy;$('use-location').textContent=t(state.locationBusy?'locating':'useLocation');
     $('clear-location').hidden=!state.location&&!state.locationBusy;
     $('location-status').textContent=state.locationBusy?t('locating'):state.locationStatus?t(state.locationStatus):'';
@@ -220,24 +252,30 @@
     $('setup-status').textContent=state.setup?t(state.setup):'';
     $('setup-status').classList.toggle('needs-action',['needYou','needPartner','needConsent'].includes(state.setup));
     $('consent').setAttribute('aria-invalid',String(state.setup==='needConsent'));
-    $('send').disabled=!state.started||state.busy||!state.consent;
-    $('message').disabled=!state.started||!state.consent;
+    $('send').disabled=!canWrite()||state.busy;
+    $('message').disabled=!canWrite();
     $('cancel').hidden=!state.busy;
-    $('retry').hidden=!state.retry||state.busy||!state.started||!state.consent;
-    $('chat-status').textContent=state.busy?t('busy'):state.status?t(state.status):'';
+    $('retry').hidden=state.view==='direct'||!state.retry||state.busy||!canWrite();
+    $('chat-status').textContent=state.busy?t(state.view==='private'?'privateBusy':'busy'):state.status?t(state.status):'';
     $('chat-error').textContent=state.error?t(state.error):'';
-    if(!state.messages.length)renderMessages();
+    if(!currentMessages().length)renderMessages();
   }
   function renderMessages() {
     const container=$('messages');container.replaceChildren();
-    if(!state.messages.length){container.append(node('p','empty-message',t(state.started?'emptyReady':'empty')));return;}
-    state.messages.forEach(message=>{
-      const article=node('article','message '+message.from);article.append(node('p','sender',message.from==='eve'?'EVE':t(message.from)),node('p','bubble',message.text));container.append(article);
+    const messages=currentMessages();
+    if(!messages.length){
+      container.append(node('p','empty-message',t(state.view==='private'?'privateEmpty':state.view==='direct'?'directEmpty':state.started?'emptyReady':'empty')));
+      if(state.view==='private')container.append(button(t('privateIdea'),()=>{$('message').value=t('privateIdea');$('message').focus();},'private-prompt'));
+      return;
+    }
+    messages.forEach(message=>{
+      const article=node('article','message '+(message.from==='eve'?'eve':message.from===state.speaker?'you':'partner'));article.append(node('p','sender',message.from==='eve'?'EVE':t(message.from)),node('p','bubble',message.text));container.append(article);
     });
+    if(state.view==='private'&&messages.at(-1)?.from==='eve'&&state.connection.opened)container.append(button(t('writeTogether').replace('{name}',otherName()),()=>{changeSpace('direct');$('message').focus();},'text-button private-next'));
     container.scrollTop=container.scrollHeight;
   }
   function renderPlan() {
-    const container=$('recommendations');container.replaceChildren();const plan=state.plan;if(!plan)return;
+    const container=$('recommendations');container.replaceChildren();container.hidden=state.view!=='plans';const plan=state.plan;if(!plan)return;
     if(plan.expired)container.append(node('p','expired-note',t('expired')));
     const grid=node('div','recommendation-grid'+(plan.expired?' expired':''));
     (plan.items||[]).slice(0,3).forEach(item=>{
@@ -287,6 +325,21 @@
     }}
     finally{if(token===serials.assist){state.busy=false;controllers.assist=null;renderControls();renderPlan();}}
   }
+  async function privateAssist(){
+    if(state.view!=='private'||state.busy||!canWrite())return;
+    const actor=state.speaker,messages=state.privateMessages[actor].slice(-20).map(({from,text})=>({from,text}));
+    if(!messages.length||messages.at(-1).from!==actor)return;
+    stopAssist();const token=serials.assist,controller=new AbortController();controllers.assist=controller;state.busy=true;state.error=null;state.status=null;state.retry=false;renderControls();
+    const partnerShared=state.started&&state.consent,vibes={};
+    for(const owner of [actor,...(partnerShared?[otherPerson()]:[])])vibes[owner]={entities:state.vibes[owner].entities.map(item=>item.id),note:state.vibes[owner].note};
+    try{
+      const data=await post('/api/try/private',{locale:state.locale,actor,partnerShared,vibes,messages},controller.signal);
+      if(token!==serials.assist)return;
+      if(typeof data.text!=='string'||!data.text.trim())throw Error('INTERNAL_ERROR');
+      state.privateMessages[actor].push({from:'eve',text:data.text,sourceLang:data.sourceLang});renderMessages();
+    }catch(error){if(token===serials.assist&&error.name!=='AbortError'){state.error=errorKey(error.message);state.retry=true;}}
+    finally{if(token===serials.assist){state.busy=false;controllers.assist=null;renderControls();}}
+  }
   function translate() {
     document.documentElement.lang=state.locale==='zh'?'zh-CN':'en';
     $('language').value=state.locale;
@@ -308,27 +361,35 @@
   $('clear-location').addEventListener('click',()=>{clearLocation();invalidate();});
   $('edit-vibes').addEventListener('click',()=>{$('vibe-setup').open=true;$('consent').focus();});
   $('consent').addEventListener('change',event=>{state.consent=event.target.checked;if(!state.consent)invalidate('withdrawn');else{state.setup=null;renderControls();}});
-  $('speaker').addEventListener('change',event=>{state.speaker=event.target.value;renderPlan();});
+  $('speaker').addEventListener('change',event=>changeSpace(state.view,event.target.value));
+  document.querySelectorAll('[data-person]').forEach(el=>el.addEventListener('click',()=>changeSpace(state.view,el.dataset.person)));
+  $('chat-tab').addEventListener('click',()=>changeSpace('private'));
+  $('plans-tab').addEventListener('click',()=>changeSpace('plans'));
+  $('private-tab').addEventListener('click',()=>changeSpace('private'));
+  $('direct-tab').addEventListener('click',()=>changeSpace('direct'));
   $('start').addEventListener('click',()=>{
     if(!state.vibes.you.entities.length){state.setup='needYou';renderControls();$('you-query').focus();return;}
     if(!state.vibes.partner.entities.length){state.setup='needPartner';renderControls();$('open-demo').focus();return;}
     if(!state.consent){state.setup='needConsent';renderControls();$('consent').focus();return;}
-    state.started=true;state.everStarted=true;state.setup='ready';state.status=null;$('vibe-setup').open=false;renderControls();compareVibes();
-    if(!state.messages.length&&!$('message').value)$('message').value=state.location?t('firstIdeaNearby'):t('firstIdea').replace('{city}',t(state.city));
+    state.connection.opened=true;state.started=true;state.everStarted=true;state.setup='ready';state.status=null;$('vibe-setup').open=false;translate();compareVibes();
+    if(!state.messages.length&&!state.drafts['plans:'+state.speaker])state.drafts['plans:'+state.speaker]=state.location?t('firstIdeaNearby'):t('firstIdea').replace('{city}',t(state.city));
+    if(state.view==='plans'&&!$('message').value)$('message').value=state.drafts[threadKey()]||'';
     $('message').focus({preventScroll:true});document.querySelector('.conversation').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
   });
   $('chat-form').addEventListener('submit',event=>{
-    event.preventDefault();const text=$('message').value.trim();if(!text||state.busy||!state.started||!state.consent)return;
+    event.preventDefault();const text=$('message').value.trim();if(!text||state.busy||!canWrite())return;
     if(text.length>1500){state.error='validation';state.retry=false;renderControls();return;}
-    state.messages.push({from:state.speaker,text,revision:state.revision});$('message').value='';renderMessages();assist();
+    currentMessages().push({from:state.speaker,text,revision:state.revision});$('message').value='';state.drafts[threadKey()]='';state.error=null;state.status=null;state.retry=false;renderMessages();
+    if(state.view==='private')privateAssist();else if(state.view==='plans')assist();else renderControls();
   });
   $('message').addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();$('chat-form').requestSubmit();}});
   $('cancel').addEventListener('click',()=>{stopAssist();state.status='cancelled';state.retry=true;renderControls();renderPlan();});
-  $('retry').addEventListener('click',()=>assist());
+  $('retry').addEventListener('click',()=>state.view==='private'?privateAssist():assist());
   $('reset').addEventListener('click',()=>{
     controllers.example?.abort();controllers.example=null;state.exampleBusy=false;stopCompare();
     stopAssist();stopConnectionSearch();state.connection={opened:false,busy:false,status:null,error:false};$('manual-vibes').open=false;for(const owner of ['you','partner']){abortSearch(owner);state.vibes[owner]={entities:[],note:''};state.search[owner]={query:'',type:'movie',items:[],busy:false,error:null,searched:false};$(owner+'-query').value='';$(owner+'-type').value='movie';$(owner+'-note').value='';}
     clearLocation();$('vibe-setup').open=true;state.city='tokyo';state.consent=false;state.started=false;state.everStarted=false;state.revision++;state.speaker='you';state.messages=[];state.plan=null;state.selected=null;state.confirmations={you:false,partner:false};state.error=null;state.status=null;state.setup=null;state.retry=false;
+    state.view='private';state.privateMessages={you:[],partner:[]};state.directMessages=[];state.drafts={};
     $('city').value='tokyo';$('consent').checked=false;$('speaker').value='you';$('message').value='';translate();$('you-query').focus();
   });
   translate();
