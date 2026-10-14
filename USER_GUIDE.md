@@ -10,7 +10,7 @@ For a quick start, select **Try two different tastes**. It looks up *Knives Out*
 
 1. **Choose something you love.** Search for a film, artist or book, then add an actual search result to **Your Vibe**. You can select up to three interests.
 2. **Open a demo connection.** The black box introduces Anya, a fictional sample partner, with her photograph and interests. Her sample film is added only if the catalog returns the matching title and year. You can open **Edit the sample Vibe yourself** to change her interests or add a note about what she would enjoy today.
-3. **Start together.** Choose Tokyo, New York City, London or Wellington, select **Share these Vibes with EVE for this session**, and press **Start together**. If a step is missing, the page explains what to do and focuses that control. **A little common ground** displays cultural themes Qloo found across the two Vibes, when available.
+3. **Start together.** Choose a city, or click **Use my location** and grant browser permission for nearby ideas. Select **Share these Vibes with EVE for this session**, then press **Start together**. If a step is missing, the page explains what to do and focuses that control. **A little common ground** displays cultural themes Qloo found across the two Vibes, when available. Setup folds away so the shared conversation takes the focus; **Vibes & location** reopens it, including the sharing choice.
 4. **Speak from both sides.** Tell EVE what you would enjoy. Change **Speaking as** to add the sample partner's wishes. For example: “I'd love to discover some art” and “One stop sounds good. I'd like time to talk afterwards.” You write both sides; Anya is not another person online.
 5. **Choose a shared idea.** Ask EVE to help plan. Open **Why these suggestions?** to see the cultural starting points. Select a candidate and confirm from both roles. You can ask a follow-up about that choice without clearing either confirmation. Ask explicitly for new or different recommendations when you want to replace it.
 
@@ -40,6 +40,8 @@ The characters, photographs and story events are fictional. They let you experie
 **Direct chat** contains the two people's messages. EVE suggestions stay in the EVE windows. Switch roles to write the other person's reply.
 
 **Make plans** is the shared conversation with EVE. Each person can express what they want from the time together. EVE uses the shared interests and current wishes to suggest cultural possibilities. Both people choose whether an idea becomes their plan.
+
+The story's **Our common ground** card shows each person's cultural starting points and Qloo's shared themes. These themes help shape the actual recommendation query; they are not a relationship score. Saved Qloo comparisons are labelled. A location request occurs only when you choose **Use my location**. Declining permission keeps manual city selection available; enabling location does not automatically discover or label your city.
 
 ## Sharing and EVE suggestions
 

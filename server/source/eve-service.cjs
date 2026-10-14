@@ -7,8 +7,9 @@ const QLOO_ORIGIN = 'https://hackathon.api.qloo.com';
 const {CITIES,CATEGORY_VALUES,PLANNING_VALUES,validCity,normalizeLocation,normalizePlanning,requestParameters,distanceMetres}=require('./qloo-support.cjs');
 const MOVIE_TYPE = 'urn:entity:movie';
 const {CULTURAL_SEEDS,CULTURAL_ARTIST_SEEDS}=require('./vibe-profiles.cjs');
+const {readSharedTags,bridgeSignals}=require('./taste-bridge.cjs');
 const SEED_TYPES=Object.freeze(['movie','artist']);
-const SEEDS=Object.freeze(Object.fromEntries(['meet','date','repair','lifetime'].map((story,index)=>[story,[...CULTURAL_SEEDS[index],...CULTURAL_ARTIST_SEEDS[index]]])));
+const SEEDS=Object.freeze(Object.fromEntries(['meet','date','repair','lifetime'].map((story,index)=>[story,[...CULTURAL_SEEDS[index].map((seed,owner)=>({...seed,owners:[['leo','julian'][owner]]})),...CULTURAL_ARTIST_SEEDS[index]]])));
 const EPISODES = Object.freeze({meet:'meet',date:'date',daily:'repair',repair:'repair',lifetime:'lifetime',older:'lifetime'});
 const MODES = Object.freeze(['common','explore']);
 const ACTORS = Object.freeze(['leo','julian']);
@@ -44,7 +45,7 @@ function createEveService(options={}) {
   const timeoutMs=options.timeoutMs??12000;
   const resultTtlMs=options.resultTtlMs??30*60*1000;
   const entityTtlMs=options.entityTtlMs??24*60*60*1000;
-  const cache=new Map(), entities=new Map(), pending=new Map();
+  const cache=new Map(), entities=new Map(), pending=new Map(), comparisons=new Map();
   let cooldownUntil=0;
 
   function status() {
@@ -59,7 +60,8 @@ function createEveService(options={}) {
   }
   async function request(endpoint,params,budget) {
     if(budget.signal?.aborted)fail(499,'QLOO_CANCELLED','Recommendation cancelled.');
-    if(++budget.calls>3)fail(429,'REQUEST_BUDGET','The recommendation request limit was reached.');
+    // A cold story plan resolves two films, compares the two owners, then finds ideas.
+    if(++budget.calls>4)fail(429,'REQUEST_BUDGET','The recommendation request limit was reached.');
     if(now()<cooldownUntil)fail(429,'QLOO_RATE_LIMIT','Qloo is busy. Please try again later.');
     const apiKey=configuration();
     const url=new URL(endpoint,QLOO_ORIGIN);url.search=new URLSearchParams(params).toString();
@@ -111,6 +113,26 @@ function createEveService(options={}) {
     const value={id:entity.entity_id,title:cleanText(entity.name,160),type:'movie',year:seed.year};
     entities.set(key,{expires:now()+entityTtlMs,value});
     return value;
+  }
+  async function compareTastes(seeds,budget) {
+    const inputs=Object.fromEntries(ACTORS.map(owner=>[owner,seeds.filter(seed=>seed.owners.includes(owner)).map(({id,title,type,year})=>({id,title,type,...(year?{year}:{})}))]));
+    const groups=ACTORS.map(owner=>inputs[owner].map(seed=>seed.id).sort());
+    const key=JSON.stringify(groups),saved=comparisons.get(key);
+    if(saved&&saved.expires>now())return {...structuredClone(saved.value),inputs,cached:true};
+    let value;
+    try {
+      const body=await request('/v2/analysis/compare',{'a.signal.interests.entities':groups[0].join(','),'b.signal.interests.entities':groups[1].join(',')},budget);
+      const shared=readSharedTags(body);
+      value={status:shared.length?'ready':'empty',source:'qloo',shared};
+    } catch(error) {
+      if(budget.signal?.aborted||error?.code==='QLOO_CANCELLED')throw error;
+      // Continue with both owners' entity signals, never invent common themes.
+      value={status:'unavailable',source:'qloo',shared:[]};
+    }
+    for(const [entry,record] of comparisons)if(record.expires<=now())comparisons.delete(entry);
+    while(comparisons.size>=32)comparisons.delete(comparisons.keys().next().value);
+    comparisons.set(key,{expires:now()+(value.status==='unavailable'?30000:15*60*1000),value});
+    return {...structuredClone(value),inputs,cached:false};
   }
   function toItem(entity,category,planning,params) {
     const type=category==='movie'?'movie':category==='travel'?'destination':'place';
@@ -182,9 +204,10 @@ function createEveService(options={}) {
     const entry={key,controller:new AbortController(),users:0,task:null};
     const task=entry.task=(async()=>{
       const budget={calls:0,signal:entry.controller.signal},seeds=[];
-      for(const seed of SEEDS[story])seeds.push(await resolveSeed(seed,budget));
+      for(const seed of SEEDS[story])seeds.push({...await resolveSeed(seed,budget),owners:[...seed.owners]});
+      const bridge=await compareTastes(seeds,budget);
       const ids=seeds.map(seed=>seed.id).join(',');
-      const params=requestParameters(category,planning),take=category==='movie'?3:6;
+      const params=bridgeSignals(requestParameters(category,planning),bridge),take=category==='movie'?3:6;
       const body=await request('/v2/insights',{...params,'signal.interests.entities':ids,'filter.exclude.entities':ids,take:String(take),page:mode==='explore'?'2':'1'},budget);
       if(!Array.isArray(body.results?.entities))fail(502,'QLOO_RESPONSE_INVALID','Qloo returned an unexpected recommendation response.');
       const seedIds=new Set(seeds.map(seed=>seed.id.toLowerCase()));
@@ -193,7 +216,7 @@ function createEveService(options={}) {
       // Device coordinates belong only in the request and ephemeral cache key, never a returned plan.
       const publicPlanning={...planning};
       if(planning.location){delete publicPlanning.location;publicPlanning.locationAvailable=true;}
-      const value={source:'qloo',category,planning:publicPlanning,items,seeds,fetchedAt:new Date(now()).toISOString(),cached:false};
+      const value={source:'qloo',category,planning:publicPlanning,items,seeds,bridge,sharedTagsApplied:bridge.shared.map(tag=>tag.id),fetchedAt:new Date(now()).toISOString(),cached:false};
       const knownCity=!planning.location&&Object.hasOwn(CITIES,planning.city)?CITIES[planning.city]:undefined;
       if(category!=='movie') {
         const signal=body.query?.locality?.signal;

@@ -1,6 +1,6 @@
 # How shared taste changes a query
 
-Checked on 14 October 2026 (New Zealand time). These are live API observations, separate from the release's 105 offline automated checks. No user-outcome study or LLM-only benchmark has been performed.
+Checked on 14 October 2026 (New Zealand time). These are live API observations, separate from the release's 112 offline automated checks. No user-outcome study or LLM-only benchmark has been performed.
 
 ## Two inputs, then a shared signal
 
@@ -42,9 +42,11 @@ An earlier New York story request used Knives Out, Amélie and Nina Simone. EVE 
 
 ## Scope and resilience
 
-Compare is integrated into the visitor Try route; authored stories continue to use their existing Qloo entity-based plans. Shared themes are cached in the service instance for 15 minutes and identified as recent comparisons when reused. Both entity groups form the cache key. Changed Vibes require a new session start and comparison. Empty results remain empty; compare failures are explicit and briefly cached, with entity-based plans still available when insights works. Cancelling sharing clears the comparison and stops pending requests.
+Compare is integrated into both visitor Try and authored-story planning. Each story film is attributed to its owner; additional verified artists retain their profile ownership. Shared themes are cached in the service instance for 15 minutes and identified as saved or recent comparisons when reused. Both entity groups form the cache key. Changed visitor Vibes require a new session start and comparison. Empty results remain empty; compare failures are explicit and briefly cached, with entity-based plans still available when insights works. Cancelling sharing clears the displayed comparison and stops pending requests.
 
-The final EVE explanation is instructed to name a selected cultural work or artist from each person and a returned shared theme. That prose is an interpretation, not an additional Qloo fact. A transient failure during this explanation stage returns verified Qloo choices without invented explanations; an initial routing failure still requires retrying.
+The updated New York video records Chloe's Knives Out and Sarah's Amélie plus Nina Simone. The story card shows Comedy, Stylized and Eccentric from Qloo. Those tags enter the story's insights request; EVE offers Museum of the Moving Image and La MaMa Experimental Theatre Club from the returned candidates. Both people separately confirm the museum and later choose their own words for the shared memory. These are fictional participants operating the real application, not user-study evidence.
+
+The final EVE explanation is instructed to name a selected cultural work or artist from each person and a returned shared theme. That prose is an interpretation, not an additional Qloo fact. In Try, a transient failure during this explanation stage returns verified Qloo choices without invented explanations; an initial routing failure still requires retrying.
 
 The public repository is a clean product release history. Development notes, credentials, internal evaluation documents and preparation materials are excluded.
 

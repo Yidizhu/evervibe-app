@@ -113,6 +113,45 @@ test('Qloo coordinates, country, category and radius filter candidates before Ge
  const unsafe=place();unsafe.properties.website='http://127.0.0.1/private';const g=fixture({results:[unsafe]});await g.seed();assert.equal((await g.service.assist(request())).items[0].url,undefined);
 });
 
+test('opt-in device location searches nearby without inheriting the fallback city or exposing coordinates',async()=>{
+ const nearby=place();nearby.location={lat:-36.8485,lon:174.7633};nearby.properties.geocode={city:'Auckland',country_code:'NZ'};nearby.properties.address='Provider street, Auckland';
+ const far=place();far.entity_id=ids.other;
+ const f=fixture({results:[far,nearby]});await f.seed();
+ const input={...request(),location:{lat:-36.8485123,lon:174.7633123,accuracy:12}};
+ const result=await f.service.assist(input),lookup=f.calls.find(c=>c.url.pathname==='/v2/insights').url;
+ assert.equal(lookup.searchParams.get('filter.location'),'POINT(174.763 -36.849)');
+ assert.equal(lookup.searchParams.get('filter.geocode.country_code'),null);
+ assert.equal(lookup.searchParams.get('filter.location.radius'),'15000');
+ assert.deepEqual(result.items.map(item=>item.id),[ids.place]);
+ const model=JSON.stringify(f.sent.map(call=>call.context)),output=JSON.stringify(result);
+ for(const raw of ['-36.8485123','174.7633123','-36.849','174.763']){assert(!model.includes(raw));assert(!output.includes(raw));}
+ assert.equal(f.sent[0].context.city,'nearby');assert.equal(f.sent[1].context.planning.city,'nearby');
+ const compare=f.calls.find(c=>c.url.pathname==='/v2/analysis/compare').url;
+ assert(!compare.href.includes('location'));assert(!compare.href.includes('36.849'));
+ const tokenPayload=JSON.parse(Buffer.from(result.items[0].contextToken.split('.')[0],'base64url').toString('utf8'));
+ assert.equal(typeof tokenPayload.locationScope,'string');assert.equal(tokenPayload.location,undefined);
+ for(const raw of ['-36.849','174.763'])assert(!JSON.stringify(tokenPayload).includes(raw));
+});
+
+test('invalid optional location is rejected before provider or model calls',async()=>{
+ const f=fixture();await f.seed();
+ for(const location of [null,[],{}, {lat:91,lon:1},{lat:1,lon:-181},{lat:'1',lon:2},{lat:Infinity,lon:2},{lat:1,lon:2,accuracy:-1}]){
+  await assert.rejects(f.service.assist({...request(),location}),{code:'BAD_REQUEST'});
+ }
+ assert.equal(f.calls.length,0);assert.equal(f.sent.length,0);
+});
+
+test('a device-based selected plan cannot be reused after changing or removing the location',async()=>{
+ const f=fixture();await f.seed();const location={lat:51.5074,lon:-0.1278};
+ const plan=await f.service.assist({...request(),location});f.calls.length=0;f.sent.length=0;
+ const selection={token:plan.items[0].contextToken,confirmed:{you:true,partner:true}};
+ for(const change of [{},{location:{lat:51.52,lon:-0.12}}])await assert.rejects(f.service.assist({...request(),...change,selection}),{code:'TRY_PLAN_INVALID'});
+ assert.equal(f.calls.length,0);assert.equal(f.sent.length,0);
+ const g=fixture({route:{intent:'chat',replaceSelection:false,text:'Keep the place you chose.'}});await g.seed();
+ const result=await g.service.assist({...request(),location:{lat:51.50749,lon:-0.12779},selection});
+ assert.equal(result.kind,'chat');assert.equal(result.replaceSelection,false);
+});
+
 test('empty or invalid provider results never get invented away; empty curation is retained',async()=>{
  const f=fixture({results:[]});await f.seed();await assert.rejects(f.service.assist(request()),{code:'NO_RECOMMENDATIONS'});assert.equal(f.sent.length,1);
  const g=fixture({curated:{text:'These do not fit the pace you want.',selections:[]}});await g.seed();assert.deepEqual((await g.service.assist(request())).items,[]);

@@ -189,7 +189,22 @@ function hintRef(key,field){const index=data().scenarios[actor].findIndex(sc=>sc
 function openHint(key){const sc=data().scenarios[actor].find(x=>x.key===key);if(!sc?.hint||!current().connected)return;hintContext={actor,episode,key,style:'subtle',text:hintRef(key,'subtle'),summary:hintRef(key,'summary'),share:false,error:null};renderHint();document.getElementById('hint-dialog').showModal();}
 function stageDraft(id){const l=line(id);if(!lineAvailable(l))return;const s=current();s.drafts[actor].direct=ref('lines',data().lines.findIndex(l=>l.id===id),'text');s.drafts[actor].tag=id;go('chat','direct');document.querySelector('.composer textarea')?.focus();}
 function addScenario(key){if(!current().connected){const allowed=current().opened[actor]?'curious':'begin';if(key!==allowed)return;current().private[actor].push({role:'user',text:uiRef('meet.'+key+'.question')},{role:'ai',text:uiRef('meet.'+key+'.reply')});render();return;}const sc=data().scenarios[actor].find(x=>x.key===key);if(!sc)return;const turnId=++seq;current().private[actor].push({role:'user',text:scenarioRef(key,'text')},{role:'ai',text:scenarioReply(sc),sc:key});offerScenarioBridge(sc,turnId);render();}
+function revealSharedOutcome(action,previousScroll){
+ if(previousScroll===undefined)return;
+ const pane=document.querySelector('.pane');if(!pane)return;
+ // Rebuilding a view must not send a confirmation back to the start of the conversation.
+ pane.scrollTop=previousScroll;
+ const selector=action==='choose'||action==='choose-live'||action==='approve-plan'?'[data-plan-status]':current().saved?':scope > .status':action==='share-memory'?'.memory-editor .shared-needs':'.memory-editor [data-do="approve-memory"]';
+ const target=pane.querySelector(selector);if(!target)return;
+ const bounds=pane.getBoundingClientRect(),position=target.getBoundingClientRect();
+ const choosing=action==='choose'||action==='choose-live';
+ if(choosing||position.top<bounds.top+12||position.bottom>bounds.bottom-12){
+  const top=pane.scrollTop+position.top-bounds.top-16;
+  pane.scrollTo({top:Math.max(0,top),behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+ }
+}
 document.addEventListener('click',e=>{const el=e.target.closest('[data-do]');if(!el||el.disabled)return;const a=el.dataset.do,arg=el.dataset.arg,s=current();
+ const outcomeScroll=['choose','choose-live','approve-plan','share-memory','approve-memory'].includes(a)?document.querySelector('.pane')?.scrollTop:undefined;
  switch(a){
  case 'page':go(arg);return;case 'private':go('chat','private');return;case 'direct':go('chat','direct');return;case 'mode':go('chat',arg);return;case 'episode':setEpisode(arg);return;
  case 'interest':if(!s.opened[actor])return;s.interest[actor]=true;if(both(s.interest)){s.connected=true;toast('notice.connected');}break;
@@ -230,7 +245,7 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-do]');if(
  case 'say-yes':if(actor==='julian'&&s.proposalSaid)s.proposalYes=true;break;
  case 'older':setEpisode(episode==='older'?'lifetime':'older');return;
  case 'next-episode':setEpisode({meet:'date',date:'repair',daily:'repair',repair:'lifetime'}[episode]||'lifetime');return;
- }render();
+ }render();revealSharedOutcome(a,outcomeScroll);
 });
 document.addEventListener('input',e=>{const s=current(),target=e.target;if(target.closest('#group-form'))s.groupDraft[actor]=target.value;if(target.closest('#chat-form'))s.drafts[actor][s.views[actor].mode]=target.value;
  switch(target.dataset.input){case 'moment-body':momentDraft().text=target.value;target.setCustomValidity('');break;case 'moment-date':momentDraft().date=target.value;break;case 'needs':s.needs[actor]=target.value;break;case 'memory':s.memoryDraft[actor]=target.value;break;case 'agreement':s.agreementDraft=target.value;break;case 'proposal':s.proposalWords=target.value;break;}

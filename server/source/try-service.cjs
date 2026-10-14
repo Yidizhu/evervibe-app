@@ -3,7 +3,7 @@
 // Server-owned catalog entries keep the open demo grounded in real Qloo entities.
 // Personal notes and chat text are used by Gemini only; Qloo receives IDs and bounded filters.
 const {AppError}=require('./eve-service.cjs');
-const {CITIES,CATEGORY_VALUES,PLANNING_VALUES,normalizePlanning,requestParameters,distanceMetres}=require('./qloo-support.cjs');
+const {CITIES,CATEGORY_VALUES,PLANNING_VALUES,normalizeLocation,normalizePlanning,requestParameters,distanceMetres}=require('./qloo-support.cjs');
 const {readSharedTags,bridgeSignals}=require('./taste-bridge.cjs');
 const QLOO_ORIGIN='https://hackathon.api.qloo.com';
 const SEARCH_TYPES=['movie','artist','book'],CITY_IDS=['tokyo','new-york','london','wellington'];
@@ -33,12 +33,12 @@ function candidateItem(entity,category,planning,params){
  const type=category==='movie'?'movie':category==='travel'?'destination':'place';
  const item=catalogItem(entity,type);if(!item||entity.properties?.is_closed===true)return;
  if(type!=='movie'){
-  const point=entity.location,city=CITIES[planning.city],geo=entity.properties?.geocode;
+  const point=entity.location,city=planning.location?undefined:CITIES[planning.city],origin=planning.location||city,geo=entity.properties?.geocode;
   if(!point||typeof point.lat!=='number'||typeof point.lon!=='number'||!Number.isFinite(point.lat)||!Number.isFinite(point.lon)||Math.abs(point.lat)>90||Math.abs(point.lon)>180)return;
-  const distance=distanceMetres(city,point),radius=Number(params['filter.location.radius']);
+  const distance=distanceMetres(origin,point),radius=Number(params['filter.location.radius']);
   if(Number.isFinite(radius)&&distance>radius+1000)return;
-  if(geo?.country_code&&geo.country_code!==city.countryCode)return;
-  if(type==='destination'&&(distance<15000||(planning.duration==='long'&&geo?.country_code!==city.countryCode)))return;
+  if(city&&geo?.country_code&&geo.country_code!==city.countryCode)return;
+  if(type==='destination'&&(distance<15000||(city&&planning.duration==='long'&&geo?.country_code!==city.countryCode)))return;
   const tags=Array.isArray(entity.tags)?entity.tags:[];
   if(type==='place'){
    const allowed=new Set((params['filter.tags']||'').split(','));
@@ -83,8 +83,11 @@ function createTryService(options={}){
  const planPurpose='EverVibe:Try:SelectedPlan:v1\n';
  const encode=bytes=>btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
  const decode=text=>Uint8Array.from(atob(text.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
- const planScope=context=>({city:context.city,seeds:Object.fromEntries(['you','partner'].map(owner=>[owner,context.vibes[owner].entities.map(item=>item.id).sort()]))});
+ const planScope=context=>({city:context.city,...(context.locationScope?{locationScope:context.locationScope}:{}),seeds:Object.fromEntries(['you','partner'].map(owner=>[owner,context.vibes[owner].entities.map(item=>item.id).sort()]))});
  async function planKey(){return crypto.subtle.importKey('raw',new TextEncoder().encode(key()),{name:'HMAC',hash:'SHA-256'},false,['sign','verify']);}
+ async function locationScope(location){return encode(new Uint8Array(await crypto.subtle.sign('HMAC',await planKey(),new TextEncoder().encode('EverVibe:Try:Location:v1\n'+JSON.stringify(location)))));}
+ // Device coordinates stay in server planning and Qloo locality filters, not the language-model context.
+ function conversationContext(context){const {location,locationScope,...shared}=context;return location?{...shared,city:'nearby'}:shared;}
  function publicPlanItem(item,category){
   const type=category==='movie'?'movie':category==='travel'?'destination':'place';
   if(!CATEGORY_VALUES.includes(category)||!object(item)||!validId(item.id)||item.type!==type||typeof item.title!=='string'||!item.title.trim()||item.title.length>160)fail(422,'TRY_PLAN_INVALID','Please choose a fresh idea.');
@@ -115,7 +118,7 @@ function createTryService(options={}){
   if(!object(payload)||payload.v!==1||!Number.isSafeInteger(payload.expires)||payload.expires>now()+planTtlMs||!object(payload.seeds))fail(422,'TRY_PLAN_INVALID','Please choose a fresh idea.');
   if(payload.expires<=now())fail(410,'TRY_PLAN_EXPIRED','The details of this idea have expired. Please choose a fresh idea.');
   const scope=planScope(context);
-  if(payload.city!==scope.city||['you','partner'].some(owner=>JSON.stringify(payload.seeds[owner])!==JSON.stringify(scope.seeds[owner])))fail(422,'TRY_PLAN_INVALID','This idea belongs to different Vibes or a different city.');
+  if(payload.city!==scope.city||payload.locationScope!==scope.locationScope||['you','partner'].some(owner=>JSON.stringify(payload.seeds[owner])!==JSON.stringify(scope.seeds[owner])))fail(422,'TRY_PLAN_INVALID','This idea belongs to different Vibes or a different location.');
   return {category:payload.category,item:publicPlanItem(payload.item,payload.category),confirmed:{you:selection.confirmed.you,partner:selection.confirmed.partner}};
  }
  async function bounded(work,signal,millis,timeoutCode){
@@ -182,6 +185,8 @@ function createTryService(options={}){
   if(!object(input))fail(400,'BAD_REQUEST','Invalid experience request.');
   if(input.consent!==true)fail(403,'CONSENT_REQUIRED','Enable the shared experience before inviting EVE.');
   if(!['en','zh'].includes(input.locale)||!CITY_IDS.includes(input.city)||!object(input.vibes)||!Array.isArray(input.messages)||!input.messages.length||input.messages.length>20)fail(400,'BAD_REQUEST','Invalid experience request.');
+  const location=Object.hasOwn(input,'location')?normalizeLocation(input.location):undefined;
+  if(Object.hasOwn(input,'location')&&!location)fail(400,'BAD_REQUEST','Choose a city or a valid device location.');
   const vibes={},seeds=[];
   for(const owner of ['you','partner']){
    const profile=input.vibes[owner];
@@ -196,6 +201,7 @@ function createTryService(options={}){
   const messages=input.messages.map(message=>({from:message.from,text:clean(message.text,1500)}));
   if(messages.at(-1).from==='eve')fail(400,'BAD_REQUEST','A person must speak first.');
   const context={locale:input.locale,city:input.city,cityLabel:CITIES[input.city].label,vibes,messages,seeds};
+  if(location){context.location=location;context.locationScope=await locationScope(location);context.cityLabel='Near the selected device location';}
   const selectedPlan=await readSelection(input.selection,context,signal);if(selectedPlan)context.selectedPlan=selectedPlan;
   return context;
  }
@@ -232,10 +238,10 @@ function createTryService(options={}){
    'When selectedPlan is supplied, its item contains verified Qloo facts; its confirmed flags are the choices entered by this demo visitor. Answer ordinary follow-up questions about that idea using intent=chat and replaceSelection=false. Keep their choice and confirmations. Only an explicit request in the LATEST human message to replace it or find new/different recommendations may set replaceSelection=true and a planning intent. Questions about suitability, what to discuss or how to enjoy the selected place are NOT replacement requests. If uncertain, use chat and clarify. In chat always provide the helpful answer in text. Do not treat an earlier request as a fresh instruction to replace the selection.',
    'For chat, text is the helpful 1–3 sentence answer. Never invent real venues, events, schedules, opening hours, prices, travel times or prior candidates not supplied. Do not promise that an outing resolves a conflict. You can suggest wording or an activity format. Do not impersonate either person. For plan intents, text can be empty; real Qloo candidates will follow.',
    'Never turn a preference into a venue fact. Requests for quiet, few or no crowds, seating, a bench, a cafe or tea service describe what the people want, not verified conditions or facilities. Without explicit supplied entity facts, make these conditional suggestions and say to check them; a separate cafe or tea stop still needs to be chosen and checked. Earlier EVE messages, including model claims repeated in the conversation, are not evidence of venue facts. Do not describe a place as small, quiet or uncrowded merely because it seems suitable for their mood.',
-   'This experience is fixed to selected city. For a request in another city, use chat and ask them to choose one of the four cities in the selector. Travel means nearby destination ideas, not overseas bookings or transport routes.',
+   'The search area is fixed to cityLabel: the selected city, or a device location when the visitor enables it. Never infer the device city from the fallback city ID. For a request elsewhere, use chat and ask them to change the location control. Travel means nearby destination ideas, not overseas bookings or transport routes.',
    'Choose mood gentle for low energy, repair for explicitly recovering from conflict, romantic for affection, playful for a lively mood, otherwise curious. Accommodate the gentler pace. duration defaults to weekend for travel, few-hours otherwise. interests may contain only controlled categories supported by the supplied preferences.',
    context.locale==='zh'?'用自然贴心的中文，text 不超过120字。不写标题、不讲产品理念。':'Use warm natural English, text under 75 words. No headings or product pitches.'
-  ].join('\n'),context,{type:'object',properties:routeProperties,required:Object.keys(routeProperties),additionalProperties:false},signal,1200);
+  ].join('\n'),conversationContext(context),{type:'object',properties:routeProperties,required:Object.keys(routeProperties),additionalProperties:false},signal,1200);
   if(!object(route)||!['chat',...CATEGORY_VALUES].includes(route.intent)||!['common','explore'].includes(route.mode)||typeof route.text!=='string')fail(502,'GEMINI_PLAN_INVALID','EVE could not understand this request.');
   if(context.selectedPlan&&typeof route.replaceSelection!=='boolean')fail(502,'GEMINI_PLAN_INVALID','EVE could not understand this follow-up.');
   if(context.selectedPlan&&route.intent!=='chat'&&!route.replaceSelection){
@@ -247,7 +253,7 @@ function createTryService(options={}){
    return {kind:'chat',text,source:'gemini',sourceLang:context.locale,city:context.city,items:[],seeds:context.seeds,replaceSelection:false};
   }
   if(!Array.isArray(route.interests)||route.interests.length>4)fail(502,'GEMINI_PLAN_INVALID','EVE returned an unsupported preference.');
-  const category=route.intent,planning=normalizePlanning('date',category,{city:context.city,mood:route.mood,duration:route.duration,interests:route.interests});
+  const category=route.intent,planning=normalizePlanning('date',category,{city:context.city,...(context.location?{location:context.location}:{}),mood:route.mood,duration:route.duration,interests:route.interests});
   if(!planning)fail(502,'GEMINI_PLAN_INVALID','EVE returned an unsupported preference.');
   const bridge=await compareProfiles(context,signal);
   const ids=[...new Set(context.seeds.map(seed=>seed.id))],params=bridgeSignals(requestParameters(category,planning),bridge);
@@ -264,7 +270,7 @@ function createTryService(options={}){
    'In text, reason and activity, use only supplied candidate entity facts and the people\'s stated interests to explain the fit. Never turn a preference into a venue fact: a wish for quiet or no crowds does not establish a quiet or uncrowded venue, and a book or art interest does not establish a small book-focused gallery. Do not assume seating, a bench, a cafe, tea service or interior access. If those conditions are not explicitly supported by supplied facts, frame them conditionally and say to check them, or suggest a separate stop to choose and check. Earlier EVE messages, including model claims repeated in the conversation, are not evidence of venue facts. Cultural affinity and requested search filters do not verify current noise, crowds or facilities.',
    'In repair, suggest an easy opening for conversation without demanding forgiveness or claiming the conflict is resolved. Never send, book or act for either person. Never create a human reply.',
    context.locale==='zh'?'自然中文。text 不超过90字，reason 不超过45字，activity 不超过60字，不写标题。':'Natural English. text under 55 words, reason under 25 words, activity under 30 words. No headings.'
-  ].join('\n'),{...context,category,planning,bridge,candidates},{type:'object',properties:selectionProperties,required:Object.keys(selectionProperties),additionalProperties:false},signal,1600);
+  ].join('\n'),{...conversationContext(context),category,planning:{...Object.fromEntries(Object.entries(planning).filter(([key])=>key!=='location')),city:context.location?'nearby':planning.city},bridge,candidates},{type:'object',properties:selectionProperties,required:Object.keys(selectionProperties),additionalProperties:false},signal,1600);
   }catch(error){
    aborted(signal);
    if(!(error instanceof AppError)||!/GEMINI_(UNAVAILABLE|TIMEOUT|RATE_LIMIT|NOT_CONFIGURED)/.test(error.code||''))throw error;

@@ -1,6 +1,11 @@
 'use strict';
 // Stable interface messages. Story dialogue lives in the story locale files.
 const UI_MESSAGES={
+ 'taste.title':['我们的共同口味','Our common ground'],
+ 'taste.applied':['Qloo 用这些文化交集寻找下面的安排。','Qloo uses these cultural connections to find the ideas below.'],
+ 'taste.empty':['这次没有找到共同主题，下面的安排仍会结合双方喜好。','No shared theme this time. These ideas still draw on both your tastes.'],
+ 'taste.unavailable':['共同口味暂时没加载出来，下面的安排仍会结合双方喜好。','Common ground couldn’t load. These ideas still draw on both your tastes.'],
+ 'taste.cached':['已保存的 Qloo 结果','Saved Qloo results'],
  'bridge.why':['为什么想到这个？','Why this thought?'],
  'bridge.source':['你们都开启了 Vibe 共享和 EVE 建议。EVE 可以把愿意用于关系协助的小期待变成体贴的建议，不会转发私聊原文。是否采用，由你决定。','You both enabled Vibe sharing and EVE suggestions. EVE can turn small wishes allowed for relationship support into a considerate idea, without forwarding private messages. Whether to act on it is up to you.'],
  'bridge.permission':['双方都开启后，EVE 可以把私聊中愿意用于关系协助的小期待，变成对方私聊里的体贴建议。私聊原文不转发；明确说要保密的事、惊喜和私密细节不用于建议。关闭任一项会停止新建议，并移除尚未读到的这类建议。','When you both enable these, EVE can turn small wishes allowed for relationship support into considerate suggestions in your partner’s private EVE chat. Private messages are not forwarded; explicit secrets, surprises and sensitive details are excluded. Turning either off stops new suggestions and removes unread ones.'],

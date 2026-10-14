@@ -30,11 +30,13 @@ flowchart LR
 
 Qloo is called with resolved cultural entity IDs and bounded filters. Its candidates constrain the places, films and destinations EVE can propose. A date or activity is usually represented by a Qloo `place`. The demo does not claim to integrate every Qloo domain, predict romantic compatibility, or match real people.
 
-In the visitor experience, `/v2/analysis/compare` receives each person's selected entity IDs separately. Its shared cultural tags appear in **A little common ground** and become `signal.interests.tags` in `/v2/insights`, alongside both sets of entity IDs. EVE's explanation is prompted to reference each person's selected work or artist and a returned shared theme. Private notes and chat are never sent to Qloo.
+In both visitor and story planning, `/v2/analysis/compare` receives each person's selected entity IDs separately. Its shared cultural tags appear in the common-ground card and become `signal.interests.tags` in `/v2/insights`, alongside both sets of entity IDs. EVE's explanation is prompted to reference each person's selected work or artist and a returned shared theme. Private notes and chat are never sent to Qloo.
 
 A live **Knives Out + Amélie / New York** comparison returned **Comedy, Stylized and Eccentric**. Adding those themes to the same place query changed five of the first six candidate IDs; Museum of the Moving Image appeared among the new candidates. This demonstrates an effect on this request, not a measured improvement in recommendation quality. [Read the comparison and its limits](docs/QLOO_COMPARISON.md), including an earlier unchanged-result control.
 
-The four authored stories retain their existing entity-based planning path. The compare integration is currently in the visitor Try experience. Missing shared tags do not block plans; a compare outage is labeled and falls back to entity-based discovery. If the final explanation request has a transient Gemini failure, the verified Qloo candidates remain usable. A failure at the initial Gemini routing step still requires a retry.
+Missing shared tags do not block plans; a compare outage is labeled and falls back to entity-based discovery. In Try, if the final explanation request has a transient Gemini failure, the verified Qloo candidates remain usable. A failure at the initial Gemini routing step still requires a retry.
+
+Both experiences offer **Use my location** after a visitor clicks it and grants browser permission. Approximate coordinates are session-only Qloo search inputs; they are not sent to Gemini. Manual city selection remains available. The four fictional story locations stay fixed unless the visitor explicitly changes the planning location.
 
 ## Run locally
 
@@ -59,9 +61,7 @@ Then start the built Worker:
 npm start -- --port 5173 --env-file "/absolute/path/to/your/project/.env.local"
 ```
 
-Replace the quoted path with the absolute path to your own `.env.local` (on Windows, for example `C:/your-project/.env.local`). Wrangler resolves relative env-file paths against its generated configuration directory, so use an absolute path here.
-
-Open `http://127.0.0.1:5173/`. To inspect authored UI without credentials, omit `--env-file` and its path; live requests will report that services are unavailable. `/api/status` reports configuration status without returning credentials.
+Open `http://127.0.0.1:5173/`. To inspect authored UI without credentials, omit `--env-file .env.local`; live requests will report that services are unavailable. `/api/status` reports configuration status without returning credentials.
 
 ## Development
 

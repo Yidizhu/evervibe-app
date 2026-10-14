@@ -29,6 +29,19 @@ test('all categories compose shared intent with real facts; Qloo never receives 
   assert.equal(sent.length,2);assert.equal(result.sourceLang,'zh');
  }
 });
+
+test('curation receives the actual compared owners and themes without inventing a relationship score',async()=>{
+ const bridge={source:'qloo',status:'ready',shared:[{id:'urn:tag:style:qloo:stylized',name:'Stylized'}],inputs:{leo:[{title:'Knives Out',type:'movie'}],julian:[{title:'Amélie',type:'movie'},{title:'Nina Simone',type:'artist'}]}};
+ let sent;
+ const planner=createPlanner({qloo:{recommend:async()=>({source:'qloo',items:structuredClone(facts),bridge})},gemini:{structured:async(system,context,schema)=>{
+  if(schema.properties.mood)return brief();
+  sent={system,context};return {text:'A place to compare what catches your eye.',selections:[{id:'place-1',reason:'Look for a detail you each love.',activity:'Choose one detail each and compare notes.',pace:'Time to talk'}]};
+ }}});
+ const result=await planner.plan({...input('activity'),episode:'date'});
+ assert.deepEqual(sent.context.bridge,bridge);assert.deepEqual(result.bridge,bridge);
+ assert.match(sent.system,/EACH owner/);assert.match(sent.system,/never a romantic compatibility/);
+ assert(!JSON.stringify(sent.context).includes('NEVER_FORWARD_PRIVATE'));
+});
 test('gates and invalid city/category reject before any provider calls',async()=>{
  const {planner,sent,queried}=fixture();
  for(const group of ['share','receive'])for(const actor of ['leo','julian']){const request=input();request.consent[group][actor]=false;await assert.rejects(planner.plan(request),{code:'CONSENT_REQUIRED'});}
