@@ -58,7 +58,7 @@ test('common taste compares owners separately and changes the actual Insights si
   assert.equal(result.bridge.status,'ready');
   assert.deepEqual(result.bridge.inputs.leo.map(seed=>seed.title),['Knives Out']);
   assert.deepEqual(result.bridge.inputs.julian.map(seed=>seed.title),['Amélie','Nina Simone']);
-  assert.deepEqual(result.sharedTagsApplied,['urn:tag:genre:media:comedy','urn:tag:style:qloo:stylized']);
+  assert.deepEqual(result.sharedTagsApplied,['urn:tag:style:qloo:stylized','urn:tag:genre:media:comedy']);
   const tags=calls.at(-1).url.searchParams.get('signal.interests.tags').split(',');
   for(const id of result.sharedTagsApplied)assert(tags.includes(id),'Compared themes must affect real recommendations.');
   assert(tags.some(id=>id.includes('contemporary_art')),'Keep the current shared planning interest, too.');
@@ -67,7 +67,7 @@ test('common taste compares owners separately and changes the actual Insights si
   result.bridge.shared[0].name='CLIENT_MUTATION';
   const next=await service.recommend({...input(),mode:'explore'});
   assert.equal(calls.filter(call=>call.url.pathname==='/v2/analysis/compare').length,1);
-  assert.equal(next.bridge.cached,true);assert.equal(next.bridge.shared[0].name,'Comedy');
+  assert.equal(next.bridge.cached,true);assert.equal(next.bridge.shared[0].name,'Stylized');
 });
 
 test('empty or unavailable compare never invents themes or blocks valid entity-based ideas',async()=>{

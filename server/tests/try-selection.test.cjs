@@ -11,7 +11,7 @@ function fixture({store=new Map(),routeOverride={},onModel,apiKey='offline-selec
   fetch:async url=>{calls.push(new URL(url));if(url.pathname==='/search'){const type=url.searchParams.get('types').split(':').at(-1);return Response.json({results:[{entity_id:ids[type==='movie'?'film':'artist'],type:'urn:entity:'+type,name:type==='movie'?'Provider film':'Provider artist'}]});}
    if(url.pathname==='/v2/analysis/compare')return Response.json({results:{tags:[]}});
    return Response.json({results:{entities:[{entity_id:ids.place,type:'urn:entity:place',name:'Provider Museum',location:{lat:51.5074,lon:-0.1278},properties:{address:'Provider street, London',description:'A collection of paintings.',geocode:{country_code:'GB',city:'London'}},tags:[{id:'urn:tag:genre:place:museum',name:'Museum'}]}]}});},
-  gemini:{structured:async(system,context,schema)=>{contexts.push({system,context:structuredClone(context)});onModel?.();if(schema.properties.intent)return context.selectedPlan?{intent:'chat',mode:'common',replaceSelection:false,text:'You could each choose a painting to talk about.',mood:'gentle',duration:'few-hours',interests:['art'],...routeOverride}:{intent:'activity',mode:'common',text:'',mood:'gentle',duration:'few-hours',interests:['art']};return {text:'A shared cultural stop.',selections:[{id:ids.place,reason:'EVE_INTERPRETATION_NOT_A_FACT',activity:'Choose a painting each.'}]};}}
+  gemini:{structured:async(system,context,schema)=>{contexts.push({system,context:structuredClone(context)});onModel?.();if(schema.properties.intent)return context.selectedPlan||context.offeredPlans?.length?{intent:'chat',mode:'common',replaceSelection:false,text:'You could each choose a painting to talk about.',mood:'gentle',duration:'few-hours',interests:['art'],...routeOverride}:{intent:'activity',mode:'common',text:'',mood:'gentle',duration:'few-hours',interests:['art']};return {text:'A shared cultural stop.',selections:[{id:ids.place,reason:'EVE_INTERPRETATION_NOT_A_FACT',activity:'Choose a painting each.'}]};}}
  });
  const seed=async()=>{for(const type of ['movie','artist'])await service.search({query:type,type,locale:'en'});calls.length=0;};
  return {service,seed,calls,contexts,store,tick:ms=>now+=ms};
@@ -53,4 +53,40 @@ test('a selected idea is replaced only by a routing decision explicitly marked a
 test('selected follow-ups preserve consent and cancellation gates before further work',async()=>{
  const first=fixture();await first.seed();const plan=await first.service.assist(input());const blocked=fixture({store:first.store});await assert.rejects(blocked.service.assist({...follow(plan),consent:false}),{code:'CONSENT_REQUIRED'});const before=new AbortController();before.abort();await assert.rejects(blocked.service.assist(follow(plan),{signal:before.signal}),{code:'TRY_CANCELLED'});assert.equal(blocked.contexts.length,0);assert.equal(blocked.calls.length,0);
  const during=new AbortController();const pending=fixture({store:first.store,onModel:()=>during.abort(),routeOverride:{intent:'activity',replaceSelection:true,text:''}});await assert.rejects(pending.service.assist(follow(plan),{signal:during.signal}),{code:'TRY_CANCELLED'});assert.equal(pending.calls.length,0);
+});
+
+const discussOffered=plan=>({...input(),messages:[{from:'partner',text:'One gallery sounds lovely. Let’s pick Provider Museum, then leave some time to talk over coffee.'}],offeredPlans:plan.items.map(item=>item.contextToken)});
+test('unselected offered cards provide verified follow-up facts without becoming confirmed plans',async()=>{
+ const first=fixture();await first.seed();const plan=await first.service.assist(input());
+ for(const locale of ['en','zh']){
+  const next=fixture({store:first.store,routeOverride:{intent:'date',replaceSelection:false,text:'That sounds like a lovely stop. Choose its card so you can both confirm; a coffee stop still needs to be chosen.'}});
+  const result=await next.service.assist({...discussOffered(plan),locale});
+  assert.equal(result.kind,'chat');assert.equal(result.replaceSelection,false);assert.deepEqual(result.items,[]);assert.equal(next.calls.length,0);
+  const context=next.contexts[0].context;assert.equal(context.offeredPlans[0].item.title,'Provider Museum');assert.equal(context.offeredPlans[0].item.description,'A collection of paintings.');assert.equal(context.selectedPlan,undefined);
+  assert.equal(context.offeredPlans[0].confirmed,undefined);
+  for(const unverified of ['contextToken','EVE_INTERPRETATION_NOT_A_FACT',plan.items[0].contextToken])assert(!JSON.stringify(context).includes(unverified));
+ }
+});
+test('offered context bounds, signatures, expiry and Vibe/location scope reject before a model call',async()=>{
+ const f=fixture();await f.seed();const plan=await f.service.assist(input()),base=discussOffered(plan),token=base.offeredPlans[0];f.calls.length=0;f.contexts.length=0;
+ for(const offeredPlans of [null,'not-an-array',[{}],[''],['x'.repeat(16001)],Array(4).fill(token),[token,token],['not.a.signature'],[token.replace(/^./,c=>c==='A'?'B':'A')]])await assert.rejects(f.service.assist({...base,offeredPlans}),{code:'TRY_PLAN_INVALID'});
+ await assert.rejects(f.service.assist({...base,city:'tokyo'}),{code:'TRY_PLAN_INVALID'});
+ const swapped=structuredClone(base);[swapped.vibes.you,swapped.vibes.partner]=[swapped.vibes.partner,swapped.vibes.you];await assert.rejects(f.service.assist(swapped),{code:'TRY_PLAN_INVALID'});
+ await assert.rejects(f.service.assist({...base,location:{lat:51.5,lon:-.1}}),{code:'TRY_PLAN_INVALID'});
+ f.tick(2001);await assert.rejects(f.service.assist(base),{code:'TRY_PLAN_EXPIRED'});assert.equal(f.calls.length,0);assert.equal(f.contexts.length,0);
+});
+test('new offered cards require an explicit replacement route while a malformed follow-up keeps them intact',async()=>{
+ const first=fixture();await first.seed();const plan=await first.service.assist(input());
+ const fresh=fixture({store:first.store,routeOverride:{intent:'activity',mode:'explore',replaceSelection:true,text:''}}),request=discussOffered(plan);request.messages=[{from:'you',text:'Please find us different museums instead.'}];
+ const replacement=await fresh.service.assist(request);assert.equal(replacement.kind,'plan');assert.equal(replacement.replaceSelection,true);assert.equal(fresh.calls.length,2);assert.equal(fresh.calls.find(url=>url.pathname==='/v2/insights').searchParams.get('page'),'2');
+ for(const routeOverride of [{replaceSelection:undefined},{intent:'date',replaceSelection:false,text:''}]){
+  const malformed=fixture({store:first.store,routeOverride});await assert.rejects(malformed.service.assist(discussOffered(plan)),{code:'GEMINI_PLAN_INVALID'});assert.equal(malformed.calls.length,0);
+ }
+});
+test('offered-plan follow-ups retain consent and request cancellation gates',async()=>{
+ const first=fixture();await first.seed();const plan=await first.service.assist(input());const request=discussOffered(plan),blocked=fixture({store:first.store});
+ await assert.rejects(blocked.service.assist({...request,consent:false}),{code:'CONSENT_REQUIRED'});
+ const before=new AbortController();before.abort();await assert.rejects(blocked.service.assist(request,{signal:before.signal}),{code:'TRY_CANCELLED'});assert.equal(blocked.calls.length,0);assert.equal(blocked.contexts.length,0);
+ const during=new AbortController(),pending=fixture({store:first.store,onModel:()=>during.abort(),routeOverride:{intent:'activity',replaceSelection:true,text:''}});
+ await assert.rejects(pending.service.assist(request,{signal:during.signal}),{code:'TRY_CANCELLED'});assert.equal(pending.calls.length,0);
 });

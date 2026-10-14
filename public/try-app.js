@@ -41,9 +41,12 @@
     vibes:{you:{entities:[],note:''},partner:{entities:[],note:''}},search:{you:{query:'',type:'movie',items:[],busy:false,error:null,searched:false},partner:{query:'',type:'movie',items:[],busy:false,error:null,searched:false}}};
   state.bridge=null;state.bridgeBusy=false;state.exampleBusy=false;state.location=null;state.locationBusy=false;state.locationStatus=null;state.locationEpoch=0;
   state.view='private';state.privateMessages={you:[],partner:[]};state.directMessages=[];state.drafts={};
+  state.sharing={you:{vibe:false,eve:true},partner:{vibe:false,eve:true}};state.checkins=new Set();state.unread={you:0,partner:0};
+  Object.assign(copy.en,{memoriesTab:'Our memories',shareVibe:'Share my Vibe',receiveEve:'Receive EVE suggestions',qlooIntro:'Qloo connects what you both love. EVE turns that common ground into something to do together.',needConsent:'Both people need to share their Vibe and receive EVE suggestions to plan with EVE.',privacy:'Shared Vibes include chosen interests and today’s note. Private EVE chats stay separate. Only your language preference is saved on this device.',eveOff:'EVE suggestions are off. You can turn them on in Settings.',afterTime:'After our time together',sharedWelcome:'{name} enjoys {taste}. A little curiosity can be a lovely start — ask what they love about it.',memoryNudge:'When you’ve had that time together, tell me what stayed with you. You can keep it in Our memories.',nextSetting:'Open sharing settings'});
+  Object.assign(copy.zh,{memoriesTab:'共同记忆',shareVibe:'共享我的 Vibe',receiveEve:'接收 EVE 建议',qlooIntro:'Qloo 连接你们各自喜欢的事物，EVE 把文化共鸣变成可以一起做的安排。',needConsent:'两人都开启共享 Vibe 和接收 EVE 建议后，就能和 EVE 一起安排。',privacy:'共享 Vibe 包含所选兴趣与今天的心情备注。EVE 私聊仍各自独立。设备上只保存语言偏好。',eveOff:'接收 EVE 建议已关闭，可以在设置里打开。',afterTime:'相处之后，留下一段回忆',sharedWelcome:'{name}喜欢{taste}。可以好奇地问问，最喜欢其中的什么。',memoryNudge:'等你们一起经历之后，告诉我最想记住的片刻吧，可以把它留在共同记忆里。',nextSetting:'打开共享设置'});
   const controllers = {you:null,partner:null,assist:null,connection:null,compare:null,example:null};
   const serials = {you:0,partner:0,assist:0,connection:0};
-  const t = key => copy[state.locale][state.connection.opened&&['partner','partnerVibe','chatHeading'].includes(key)?key+'Demo':key] || key;
+  const t = key => key==='you'&&state.speaker==='partner'?(state.locale==='zh'?'体验者':'Visitor'):copy[state.locale][state.connection.opened&&['partner','partnerVibe','chatHeading'].includes(key)?key+'Demo':key] || key;
   function node(tag, className, text) { const el=document.createElement(tag); if(className)el.className=className; if(text!==undefined)el.textContent=text; return el; }
   function button(text, action, className='') {const el=node('button',className,text);el.type='button';el.addEventListener('click',action);return el;}
   function label(key, htmlFor, cls='field-label') {const el=node('label',cls);el.dataset.i18n=key;el.htmlFor=htmlFor;return el;}
@@ -51,27 +54,37 @@
   const otherName=()=>state.speaker==='partner'?(state.locale==='zh'?'体验者':'the visitor'):t('partner');
   const threadKey=()=>state.view+':'+state.speaker;
   const currentMessages=()=>state.view==='private'?state.privateMessages[state.speaker]:state.view==='direct'?state.directMessages:state.messages;
-  const canWrite=()=>state.view==='plans'?state.started&&state.consent:state.view==='direct'?state.connection.opened:state.speaker==='you'||state.connection.opened;
+  const canWrite=()=>state.view==='memories'?false:state.view==='plans'?state.started&&state.consent:state.view==='direct'?state.connection.opened:state.sharing[state.speaker].eve&&(state.speaker==='you'||state.connection.opened);
+  function addCheckin(key,text){
+    for(const owner of ['you','partner']){const id=key+':'+owner;if(!state.sharing[owner].eve||state.checkins.has(id))continue;state.checkins.add(id);state.privateMessages[owner].push({from:'eve',text:typeof text==='function'?text(owner):text,sourceLang:state.locale,checkin:true});if(state.view!=='private'||state.speaker!==owner)state.unread[owner]++;}
+    $('chat-tab').textContent=t('chatTab')+(state.unread[state.speaker]?' · '+state.unread[state.speaker]:'');
+  }
+  function openSharing(){ $('vibe-setup').open=true;$('share-'+state.speaker).focus(); }
   function changeSpace(view=state.view,speaker=state.speaker){
     state.drafts[threadKey()]=$('message').value;stopAssist();state.view=view;state.speaker=speaker;state.error=null;state.status=null;
+    if(view==='private')state.unread[speaker]=0;
     state.retry=view!=='direct'&&currentMessages().at(-1)?.from===speaker;
     $('speaker').value=speaker;$('message').value=state.drafts[threadKey()]||'';
     renderControls();renderMessages();renderPlan();renderBridge();
   }
   function renderSpace(){
-    const plans=state.view==='plans',direct=state.view==='direct',other=otherName();
+    const plans=state.view==='plans',direct=state.view==='direct',memories=state.view==='memories',other=otherName();
     $('perspective-bar').hidden=!state.connection.opened;
-    document.querySelectorAll('[data-person]').forEach(el=>{el.textContent=t(el.dataset.person);el.setAttribute('aria-pressed',String(el.dataset.person===state.speaker));});
+    document.querySelectorAll('.perspective-bar [data-person]').forEach(el=>{el.textContent=t(el.dataset.person);el.setAttribute('aria-pressed',String(el.dataset.person===state.speaker));});
     $('chat-heading').textContent=state.speaker==='you'?t('yourView'):t('partnerView').replace('{name}',t('partner'));
     const avatar=$('view-avatar');avatar.replaceChildren();
     if(state.speaker==='partner'&&state.connection.opened){const photo=node('img');photo.src='/assets/people/anya-v2.png';photo.alt='';avatar.append(photo);}else avatar.textContent=state.locale==='zh'?'我':'Y';
     $('shared-participants').textContent=state.connection.opened?t('withPartner').replace('{name}',other):t('privateScope');
-    $('chat-tab').classList.toggle('active',!plans);$('chat-tab').setAttribute('aria-selected',String(!plans));
+    $('chat-tab').classList.toggle('active',!plans&&!memories);$('chat-tab').setAttribute('aria-selected',String(!plans&&!memories));
+    $('chat-tab').textContent=t('chatTab')+(state.unread[state.speaker]?' · '+state.unread[state.speaker]:'');
     $('plans-tab').classList.toggle('active',plans);$('plans-tab').setAttribute('aria-selected',String(plans));
+    $('memories-tab').classList.toggle('active',memories);$('memories-tab').setAttribute('aria-selected',String(memories));
+    $('conversation-content').hidden=memories;$('try-memories').hidden=!memories;$('try-agreements').hidden=!plans;
+    memoriesUI.render();agreementsUI.render();
     $('conversation-content').setAttribute('aria-labelledby',plans?'plans-tab':'chat-tab');
     $('chat-switch').hidden=plans;$('private-tab').setAttribute('aria-selected',String(!direct));$('direct-tab').setAttribute('aria-selected',String(direct));
     $('direct-tab').textContent=t('directTab').replace('{name}',other);$('direct-tab').hidden=!state.connection.opened;
-    $('scope-note').textContent=t(plans?'groupScope':direct?'directScope':'privateScope').replace('{name}',t('partner'));
+    $('scope-note').textContent=plans?[t('you'),t('partner'),'EVE'].join(' · '):t(direct?'directScope':'privateScope');
     $('message').placeholder=t(plans?'messagePlaceholder':direct?'directPlaceholder':'privatePlaceholder').replace('{name}',other);
     $('recommendations').hidden=!plans;
     document.querySelector('.speaker-row').hidden=true;
@@ -121,7 +134,8 @@
     const bridge=state.bridge;
     if(bridge?.status==='ready'&&Array.isArray(bridge.shared)){
       const inputs=node('div','bridge-inputs');for(const owner of ['you','partner'])inputs.append(node('span','',t(owner)+' · '+state.vibes[owner].entities.map(e=>e.title).join(' + ')));card.append(inputs);
-      const chips=node('div','bridge-tags');bridge.shared.slice(0,3).forEach(tag=>chips.append(node('span','',state.locale==='zh'?(tagZh[tag.name]||tag.name):tag.name)));card.append(chips,node('p','fine',t('bridgeSource')));
+      const seen=new Set(),themes=bridge.shared.filter(tag=>{const name=String(tag.name||'').trim().toLocaleLowerCase();if(!name||seen.has(name))return false;seen.add(name);return true;});
+      const chips=node('div','bridge-tags');themes.slice(0,3).forEach(tag=>chips.append(node('span','',state.locale==='zh'?(tagZh[tag.name]||tag.name):tag.name)));card.append(chips,node('p','fine',t('bridgeSource')));
       if(bridge.cached)card.append(node('p','fine',t('bridgeCache')));
     }else{card.append(node('p','fine',t(bridge?.status==='empty'?'bridgeEmpty':'bridgeUnavailable')));if(bridge?.status!=='empty')card.append(button(t('retry'),()=>compareVibes(),'text-button'));}
   }
@@ -252,11 +266,12 @@
     $('setup-status').textContent=state.setup?t(state.setup):'';
     $('setup-status').classList.toggle('needs-action',['needYou','needPartner','needConsent'].includes(state.setup));
     $('consent').setAttribute('aria-invalid',String(state.setup==='needConsent'));
+    for(const owner of ['you','partner']){$('share-'+owner).checked=state.sharing[owner].vibe;$('eve-'+owner).checked=state.sharing[owner].eve;}
     $('send').disabled=!canWrite()||state.busy;
     $('message').disabled=!canWrite();
     $('cancel').hidden=!state.busy;
     $('retry').hidden=state.view==='direct'||!state.retry||state.busy||!canWrite();
-    $('chat-status').textContent=state.busy?t(state.view==='private'?'privateBusy':'busy'):state.status?t(state.status):'';
+    $('chat-status').textContent=state.view==='private'&&!state.sharing[state.speaker].eve?t('eveOff'):state.busy?t(state.view==='private'?'privateBusy':'busy'):state.status?t(state.status):'';
     $('chat-error').textContent=state.error?t(state.error):'';
     if(!currentMessages().length)renderMessages();
   }
@@ -266,6 +281,7 @@
     if(!messages.length){
       container.append(node('p','empty-message',t(state.view==='private'?'privateEmpty':state.view==='direct'?'directEmpty':state.started?'emptyReady':'empty')));
       if(state.view==='private')container.append(button(t('privateIdea'),()=>{$('message').value=t('privateIdea');$('message').focus();},'private-prompt'));
+      if(state.view==='plans'&&!state.started)container.append(button(t('nextSetting'),openSharing,'private-prompt'));
       return;
     }
     messages.forEach(message=>{
@@ -294,7 +310,7 @@
       const confirmations=node('div','choice-confirmations');
       for(const owner of ['you','partner']){const badge=node('span','confirmation'+(state.confirmations[owner]?' confirmed':''),t(owner)+' · '+t(state.confirmations[owner]?'confirmed':'waiting'));badge.dataset.confirmation=owner;badge.dataset.confirmed=String(state.confirmations[owner]);confirmations.append(badge);}
       result.append(confirmations);
-      if(shared)result.append(node('p','fine',t('notBooked')));
+      if(shared){result.append(node('p','fine',t('notBooked')),button(t('afterTime'),()=>{changeSpace('memories');memoriesUI.beginFromPlan(item);},'primary'));addCheckin('plan:'+item.id,t('memoryNudge'));}
       else {const confirm=button(t('confirmChoice')+t(state.speaker),()=>{if(!state.selected||state.plan?.expired||!state.started||!state.consent||state.busy)return;state.confirmations[state.speaker]=true;renderPlan();},'primary');confirm.id='confirm-choice';confirm.disabled=state.confirmations[state.speaker]||!state.started||!state.consent||state.busy;result.append(confirm);}
       container.append(result);
     }}
@@ -310,6 +326,7 @@
     const body={...sharedInput(),messages};
     const selected=state.plan?.items.find(item=>item.id===state.selected);
     if(selected&&!state.plan.expired)body.selection={token:selected.contextToken||'',confirmed:{...state.confirmations}};
+    else if(state.plan&&!state.plan.expired)body.offeredPlans=state.plan.items.map(item=>item.contextToken).filter(Boolean).slice(0,3);
     try {
       const data=await post('/api/try/assist',body,controller.signal);
       if(token!==serials.assist||revision!==state.revision||!state.consent)return;
@@ -330,7 +347,7 @@
     const actor=state.speaker,messages=state.privateMessages[actor].slice(-20).map(({from,text})=>({from,text}));
     if(!messages.length||messages.at(-1).from!==actor)return;
     stopAssist();const token=serials.assist,controller=new AbortController();controllers.assist=controller;state.busy=true;state.error=null;state.status=null;state.retry=false;renderControls();
-    const partnerShared=state.started&&state.consent,vibes={};
+    const partnerShared=state.sharing[otherPerson()].vibe,vibes={};
     for(const owner of [actor,...(partnerShared?[otherPerson()]:[])])vibes[owner]={entities:state.vibes[owner].entities.map(item=>item.id),note:state.vibes[owner].note};
     try{
       const data=await post('/api/try/private',{locale:state.locale,actor,partnerShared,vibes,messages},controller.signal);
@@ -359,21 +376,24 @@
   $('city').addEventListener('change',event=>{clearLocation();state.city=event.target.value;invalidate();});
   $('use-location').addEventListener('click',locate);
   $('clear-location').addEventListener('click',()=>{clearLocation();invalidate();});
-  $('edit-vibes').addEventListener('click',()=>{$('vibe-setup').open=true;$('consent').focus();});
-  $('consent').addEventListener('change',event=>{state.consent=event.target.checked;if(!state.consent)invalidate('withdrawn');else{state.setup=null;renderControls();}});
+  $('edit-vibes').addEventListener('click',openSharing);
+  for(const owner of ['you','partner'])for(const [prefix,key] of [['share','vibe'],['eve','eve']])$(prefix+'-'+owner).addEventListener('change',event=>{state.sharing[owner][key]=event.target.checked;state.consent=['you','partner'].every(person=>state.sharing[person].vibe&&state.sharing[person].eve);$('consent').checked=state.consent;if(!state.consent)invalidate('withdrawn');else{state.setup=null;renderControls();}renderMessages();});
   $('speaker').addEventListener('change',event=>changeSpace(state.view,event.target.value));
-  document.querySelectorAll('[data-person]').forEach(el=>el.addEventListener('click',()=>changeSpace(state.view,el.dataset.person)));
+  document.querySelectorAll('.perspective-bar [data-person]').forEach(el=>el.addEventListener('click',()=>changeSpace(state.view,el.dataset.person)));
   $('chat-tab').addEventListener('click',()=>changeSpace('private'));
   $('plans-tab').addEventListener('click',()=>changeSpace('plans'));
+  $('memories-tab').addEventListener('click',()=>changeSpace('memories'));
   $('private-tab').addEventListener('click',()=>changeSpace('private'));
   $('direct-tab').addEventListener('click',()=>changeSpace('direct'));
   $('start').addEventListener('click',()=>{
     if(!state.vibes.you.entities.length){state.setup='needYou';renderControls();$('you-query').focus();return;}
     if(!state.vibes.partner.entities.length){state.setup='needPartner';renderControls();$('open-demo').focus();return;}
-    if(!state.consent){state.setup='needConsent';renderControls();$('consent').focus();return;}
+    if(!state.consent){state.setup='needConsent';renderControls();$('share-'+state.speaker).focus();return;}
     state.connection.opened=true;state.started=true;state.everStarted=true;state.setup='ready';state.status=null;$('vibe-setup').open=false;translate();compareVibes();
     if(!state.messages.length&&!state.drafts['plans:'+state.speaker])state.drafts['plans:'+state.speaker]=state.location?t('firstIdeaNearby'):t('firstIdea').replace('{city}',t(state.city));
-    if(state.view==='plans'&&!$('message').value)$('message').value=state.drafts[threadKey()]||'';
+    addCheckin('welcome',owner=>{const other=owner==='you'?'partner':'you';return t('sharedWelcome').replace('{name}',t(other)).replace('{taste}',state.vibes[other].entities.map(item=>item.title).join(', '));});
+    changeSpace('plans');
+    if(!$('message').value){$('message').value=state.location?t('firstIdeaNearby'):t('firstIdea').replace('{city}',t(state.city));state.drafts[threadKey()]=$('message').value;}
     $('message').focus({preventScroll:true});document.querySelector('.conversation').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
   });
   $('chat-form').addEventListener('submit',event=>{
@@ -390,7 +410,11 @@
     stopAssist();stopConnectionSearch();state.connection={opened:false,busy:false,status:null,error:false};$('manual-vibes').open=false;for(const owner of ['you','partner']){abortSearch(owner);state.vibes[owner]={entities:[],note:''};state.search[owner]={query:'',type:'movie',items:[],busy:false,error:null,searched:false};$(owner+'-query').value='';$(owner+'-type').value='movie';$(owner+'-note').value='';}
     clearLocation();$('vibe-setup').open=true;state.city='tokyo';state.consent=false;state.started=false;state.everStarted=false;state.revision++;state.speaker='you';state.messages=[];state.plan=null;state.selected=null;state.confirmations={you:false,partner:false};state.error=null;state.status=null;state.setup=null;state.retry=false;
     state.view='private';state.privateMessages={you:[],partner:[]};state.directMessages=[];state.drafts={};
+    state.sharing={you:{vibe:false,eve:true},partner:{vibe:false,eve:true}};state.checkins.clear();state.unread={you:0,partner:0};memoriesUI.reset();agreementsUI.reset();
     $('city').value='tokyo';$('consent').checked=false;$('speaker').value='you';$('message').value='';translate();$('you-query').focus();
   });
+  const context=()=>({locale:state.locale,actor:state.speaker,connected:state.connection.opened,eveEnabled:state.consent,names:{you:t('you'),partner:t('partner')},messages:state.consent?state.messages:[],plan:state.confirmations.you&&state.confirmations.partner?state.plan?.items.find(item=>item.id===state.selected)||null:null});
+  const memoriesUI=window.EverTryMemories.create({host:$('try-memories'),getContext:context});
+  const agreementsUI=window.EverTryAgreements.create({host:$('try-agreements'),getContext:context});
   translate();
 })();

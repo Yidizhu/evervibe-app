@@ -1,6 +1,6 @@
 # How shared taste changes a query
 
-Checked on 14 October 2026 (New Zealand time). These are live API observations, separate from the release's 120 offline automated checks. No user-outcome study or LLM-only benchmark has been performed.
+Checked on 14 October 2026 (New Zealand time). These are live API observations, separate from the release's 145 offline automated checks. No user-outcome study or LLM-only benchmark has been performed.
 
 ## Two inputs, then a shared signal
 

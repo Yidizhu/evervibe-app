@@ -328,7 +328,7 @@ test('compare sends separate verified groups and returns public themes, never sc
  const f=fixture({compareTags:commonTags});await f.seed();const result=await f.service.compare({...request(),shared:[{id:'urn:tag:fake',name:'Soulmates'}]});
  assert.equal(result.status,'ready');assert.equal(result.source,'qloo');assert.equal(f.sent.length,0);assert.equal(f.calls.length,1);
  const params=f.calls[0].url.searchParams;assert.equal(params.get('a.signal.interests.entities'),ids.film);assert.equal(params.get('b.signal.interests.entities'),ids.artist);assert.equal([...params].length,2);
- assert.deepEqual(result.shared,[{id:commonTags[0].tag_id,name:'Comedy'},{id:commonTags[1].tag_id,name:'Stylized'}]);
+ assert.deepEqual(result.shared,[{id:commonTags[1].tag_id,name:'Stylized'},{id:commonTags[0].tag_id,name:'Comedy'}]);
  assert.deepEqual(result.inputs.you,[{id:ids.film,title:'Provider Film',type:'movie'}]);
  for(const text of ['PRIVATE_NOTE','SHARED_TEXT','Soulmates','score'])assert(!JSON.stringify(result).includes(text));
  assert(!f.calls[0].url.href.includes('PRIVATE_NOTE'));
@@ -349,8 +349,16 @@ test('real compare themes enter insights signals and the explanation context',as
  assert.equal(f.calls.filter(c=>c.url.pathname==='/v2/analysis/compare').length,1);
  const insights=f.calls.find(c=>c.url.pathname==='/v2/insights').url;assert.equal(insights.searchParams.get('signal.interests.entities'),`${ids.film},${ids.artist}`);
  for(const tag of commonTags)assert(insights.searchParams.get('signal.interests.tags').split(',').includes(tag.tag_id));
- assert(!insights.href.includes('urn%3Atag%3Afake'));assert.deepEqual(result.sharedTagsApplied,commonTags.map(tag=>tag.tag_id));
+ assert(!insights.href.includes('urn%3Atag%3Afake'));assert.deepEqual(result.sharedTagsApplied,[commonTags[1].tag_id,commonTags[0].tag_id]);
  assert.deepEqual(f.sent[1].context.bridge.shared,result.bridge.shared);assert.match(f.sent[1].system,/from EACH person/);
+});
+test('duplicate shared labels do not produce duplicated themes in recommendation signals',async()=>{
+ const tags=[{tag_id:'urn:tag:genre:media:drama',name:'Drama'},{tag_id:'urn:tag:character:qloo:complex',name:'Complex'},{tag_id:'urn:tag:genre:qloo:drama',name:'Drama'}];
+ const f=fixture({compareTags:tags});await f.seed();const result=await f.service.assist(request());
+ assert.deepEqual(result.bridge.shared,[{id:tags[1].tag_id,name:'Complex'},{id:tags[0].tag_id,name:'Drama'}]);
+ const signals=f.calls.find(c=>c.url.pathname==='/v2/insights').url.searchParams.get('signal.interests.tags').split(',');
+ assert(signals.includes(tags[1].tag_id));assert(signals.includes(tags[0].tag_id));assert(!signals.includes(tags[2].tag_id));
+ assert.deepEqual(f.sent[1].context.bridge.shared,result.bridge.shared);
 });
 test('no overlap and compare outages stay explicit while entity-based recommendations continue',async()=>{
  for(const options of [{},{compareResponse:()=>Response.json({error:'offline'},{status:503})},{compareResponse:()=>Response.json({results:{a:[],b:[]}})}]){

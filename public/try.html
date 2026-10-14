@@ -6,6 +6,12 @@
   <meta name="color-scheme" content="light">
   <title>EverVibe · Try your Vibe</title>
   <link rel="stylesheet" href="/try.css">
+  <link rel="stylesheet" href="/try-memories.css">
+  <link rel="stylesheet" href="/try-agreements.css">
+  <script type="importmap">{"imports":{"three":"/vendor/three/build/three.module.js","three/addons/":"/vendor/three/examples/jsm/"}}</script>
+  <script src="/tree3d.js" defer></script>
+  <script src="/try-memories.js" defer></script>
+  <script src="/try-agreements.js" defer></script>
   <script src="/try-app.js" defer></script>
 </head>
 <body>
@@ -24,6 +30,7 @@
       <p class="eyebrow" data-i18n="eyebrow">A little of you. A little of us.</p>
       <h1 id="page-title" data-i18n="title">Bring a few things you love.<br>Find something to share.</h1>
       <p class="intro-note" data-i18n="sampleNote">The sample partner is a role you can try, not a person online.</p>
+      <p class="intro-note qloo-intro" data-i18n="qlooIntro">Qloo connects what you both love. EVE turns that common ground into something to do together.</p>
       <button id="quick-example" class="example-pair" type="button" data-i18n="quickExample">Try two different tastes</button>
     </section>
     <details id="vibe-setup" aria-label="Vibe setup" open>
@@ -51,7 +58,11 @@
       </div>
       <div class="session-options">
         <div class="location-field"><div class="city-field"><label for="city" data-i18n="city">Our city</label><select id="city"><option value="tokyo">Tokyo</option><option value="new-york">New York City</option><option value="london">London</option><option value="wellington">Wellington</option></select></div><div class="location-actions"><button id="use-location" type="button" class="location-button" data-i18n="useLocation">Use my location</button><button id="clear-location" type="button" class="text-button" data-i18n="clearLocation" hidden>Use selected city</button></div><p id="location-status" class="fine" role="status" aria-live="polite"></p></div>
-        <label class="consent"><input id="consent" type="checkbox" aria-describedby="setup-status"><span data-i18n="consent">Share these Vibes with EVE for this session</span></label>
+        <input id="consent" type="checkbox" hidden aria-hidden="true">
+        <div class="sharing-people" id="sharing-people">
+          <fieldset><legend data-i18n="you">You</legend><label><input id="share-you" type="checkbox"><span data-i18n="shareVibe">Share my Vibe</span></label><label><input id="eve-you" type="checkbox" checked><span data-i18n="receiveEve">Receive EVE suggestions</span></label></fieldset>
+          <fieldset><legend data-i18n="partner">Anya (demo)</legend><label><input id="share-partner" type="checkbox"><span data-i18n="shareVibe">Share my Vibe</span></label><label><input id="eve-partner" type="checkbox" checked><span data-i18n="receiveEve">Receive EVE suggestions</span></label></fieldset>
+        </div>
         <button id="start" class="primary" data-i18n="start">Start together</button>
       </div>
       <p class="fine" data-i18n="privacy">Starting compares your selected interests with Qloo. Your notes and chat reach EVE when you send a message. Only your language preference is saved on this device.</p>
@@ -60,7 +71,7 @@
     <div class="perspective-bar" id="perspective-bar" hidden><span data-i18n="perspective">Perspective</span><button type="button" data-person="you">You</button><button type="button" data-person="partner">Anya (demo)</button></div>
     <section class="conversation" aria-labelledby="chat-heading">
       <div class="conversation-head"><span class="eve-orb" id="view-avatar" aria-hidden="true">Y</span><div><h2 id="chat-heading">Your view</h2><p id="shared-participants" class="fine"></p></div></div>
-      <div class="shared-space-nav" role="tablist" aria-label="Your space"><button id="chat-tab" type="button" role="tab" aria-controls="conversation-content" data-i18n="chatTab">Chat</button><button id="plans-tab" type="button" role="tab" aria-controls="conversation-content" data-i18n="makePlans">Make plans</button><button id="edit-vibes" class="text-button" type="button" data-i18n="settings">Settings</button></div>
+      <div class="shared-space-nav" role="tablist" aria-label="Your space"><button id="chat-tab" type="button" role="tab" aria-controls="conversation-content" data-i18n="chatTab">Chat</button><button id="plans-tab" type="button" role="tab" aria-controls="conversation-content" data-i18n="makePlans">Make plans</button><button id="memories-tab" type="button" role="tab" aria-controls="try-memories" data-i18n="memoriesTab">Our memories</button><button id="edit-vibes" class="text-button" type="button" data-i18n="settings">Settings</button></div>
       <div id="conversation-content" role="tabpanel" aria-labelledby="chat-tab">
       <div class="chat-switch" id="chat-switch" role="tablist" aria-label="Chat with"><button id="private-tab" type="button" role="tab" aria-controls="messages" data-i18n="privateTab">Private chat with EVE</button><button id="direct-tab" type="button" role="tab" aria-controls="messages">Chat with Anya</button></div>
       <p id="scope-note" class="scope-note"></p>
@@ -74,7 +85,9 @@
         <div class="composer"><label class="visually-hidden" for="message" data-i18n="message">Message</label><textarea id="message" rows="2" maxlength="1500" placeholder="What would feel good to do together?"></textarea><button id="send" class="primary" type="submit" data-i18n="send">Send</button></div>
         <div class="request-actions"><button id="cancel" class="text-button" type="button" data-i18n="cancel" hidden>Cancel response</button><button id="retry" class="text-button" type="button" data-i18n="retry" hidden>Try again</button></div>
       </form>
+      <section id="try-agreements" hidden></section>
       </div>
+      <section id="try-memories" role="tabpanel" aria-labelledby="memories-tab" hidden></section>
     </section>
     <footer><span data-i18n="sessionOnly">Your session, here and now.</span><button id="reset" class="text-button" data-i18n="reset">Reset this session</button></footer>
   </main>

@@ -1,0 +1,27 @@
+.try-agreements{margin:18px 24px 24px;border-top:1px solid var(--line,#d9e3e5);padding-top:18px;color:var(--ink,#28404c)}
+.try-agreements>summary{cursor:pointer;font:400 21px var(--serif,Georgia,serif);padding:5px 0;min-height:32px}
+.try-agreements summary:focus-visible{outline:2px solid var(--green,#407e75);outline-offset:5px;border-radius:3px}
+.try-agreements .agreement-pending-dot{color:var(--green,#407e75)}
+.try-agreements .agreement-body{padding-top:16px}
+.try-agreements .agreement-form label{display:block;font-size:13px;color:var(--muted,#60767c)}
+.try-agreements .agreement-form textarea{display:block;box-sizing:border-box;width:100%;min-height:85px;resize:vertical;padding:13px 15px;margin-top:8px;border:1px solid var(--line,#d9e3e5);border-radius:10px;background:#fafcfc;color:var(--ink,#28404c);font:inherit;font-size:14px;line-height:1.65}
+.try-agreements .agreement-form textarea:focus{outline:2px solid #88b2a9;outline-offset:2px}
+.try-agreements .agreement-form textarea:disabled{opacity:.6}
+.try-agreements .agreement-proposal{border:1px solid #c8ded7;background:#edf5f1;border-radius:12px;padding:16px;margin-bottom:16px}
+.try-agreements h4{font-size:13px;font-weight:600;margin:0 0 9px}
+.try-agreements .agreement-text{font-size:14px;line-height:1.75;white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
+.try-agreements .agreement-confirmations{display:flex;flex-wrap:wrap;gap:5px 20px;margin-top:12px;font-size:12px;color:var(--muted,#60767c)}
+.try-agreements .agreement-confirmations [data-confirmed=true]{color:#2c7164}
+.try-agreements .agreement-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin-top:14px}
+.try-agreements .agreement-actions button{font-size:13px;min-height:40px}
+.try-agreements .agreement-actions button:active{transform:translateY(1px)}
+.try-agreements .agreement-actions .text-button{background:transparent;padding:7px 0;color:var(--green-dark,#326f64)}
+.try-agreements .agreement-status{margin:12px 0 0;min-height:0}
+.try-agreements .agreement-status:empty{display:none}
+.try-agreements .agreement-history{border-top:1px solid var(--line,#d9e3e5);margin-top:18px;padding-top:13px;font-size:13px}
+.try-agreements .agreement-history>summary{cursor:pointer;color:var(--muted,#60767c);padding:5px 0}
+.try-agreements .agreement-history ul{list-style:none;padding:0;margin:0}
+.try-agreements .agreement-history li{padding:14px 0;border-bottom:1px solid var(--line,#d9e3e5)}
+.try-agreements .agreement-history li:last-child{border-bottom:0}
+.try-agreements .agreement-history .fine{display:block;margin-top:6px}
+@media(max-width:700px){.try-agreements{margin:16px 18px 20px}.try-agreements>summary{font-size:20px}.try-agreements .agreement-proposal{padding:14px}.try-agreements .agreement-actions{gap:8px 14px}.try-agreements .agreement-confirmations{flex-direction:column;gap:5px}}
