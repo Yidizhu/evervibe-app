@@ -296,6 +296,43 @@ test('routing errors stop; transient curator errors preserve genuine Qloo result
  }
 });
 
+test('explicit recovery skips model routing and keeps verified Qloo choices when EVE times out',async()=>{
+ for(const category of ['movie','activity']){
+  const candidate=category==='movie'?makeEntity(ids.place,'movie','Provider Film'):place();
+  if(category==='activity')candidate.tags=[{id:'urn:tag:genre:place:museum',name:'Museum'}];
+  const f=fixture({results:[candidate],onGemini:({schema})=>{
+   assert(!schema.properties.intent,'recovery must not repeat a failed route call');
+   throw new AppError(504,'GEMINI_TIMEOUT','A temporary timeout');
+  }});await f.seed();
+  const result=await f.service.assist({...request(),requestedCategory:category});
+  assert.equal(f.sent.length,1);assert.equal(result.category,category);assert.equal(result.explanationAvailable,false);
+  assert.equal(result.source,'qloo');assert.equal(result.items[0].title,candidate.name);assert.equal(result.items[0].reason,'');
+  assert(result.items[0].contextToken);assert.equal(result.items[0].activity,'');
+  assert.deepEqual(f.calls.map(c=>c.url.pathname),['/v2/analysis/compare','/v2/insights']);
+  assert.equal(f.calls[1].url.searchParams.get('signal.interests.entities'),`${ids.film},${ids.artist}`);
+ }
+});
+
+test('explicit recovery cannot bypass consent, location validation or an existing choice',async()=>{
+ const f=fixture();await f.seed();
+ await assert.rejects(f.service.assist({...request(),requestedCategory:'movie',consent:false}),{code:'CONSENT_REQUIRED'});
+ await assert.rejects(f.service.assist({...request(),requestedCategory:'movie',city:''}),{code:'BAD_REQUEST'});
+ for(const requestedCategory of ['travel','chat','',null,{}])await assert.rejects(f.service.assist({...request(),requestedCategory}),{code:'BAD_REQUEST'});
+ assert.equal(f.calls.length,0);assert.equal(f.sent.length,0);
+ const plan=await f.service.assist(request());f.calls.length=0;f.sent.length=0;
+ for(const extra of [{selection:{token:plan.items[0].contextToken,confirmed:{you:true,partner:true}}},{offeredPlans:[plan.items[0].contextToken]}]){
+  await assert.rejects(f.service.assist({...request(),...extra,requestedCategory:'movie'}),{code:'TRY_PLAN_INVALID'});
+ }
+ assert.equal(f.calls.length,0);assert.equal(f.sent.length,0);
+});
+
+test('explicit recovery preserves empty results and cancellation rather than inventing candidates',async()=>{
+ const f=fixture({results:[]});await f.seed();
+ await assert.rejects(f.service.assist({...request(),requestedCategory:'movie'}),{code:'NO_RECOMMENDATIONS'});assert.equal(f.sent.length,0);
+ const controller=new AbortController();controller.abort();f.calls.length=0;
+ await assert.rejects(f.service.assist({...request(),requestedCategory:'movie'},{signal:controller.signal}),{code:'TRY_CANCELLED'});assert.equal(f.calls.length,0);
+});
+
 test('Unicode searches stay intact and do not invent a Qloo language parameter',async()=>{
  const f=fixture();await f.service.search({query:'千と千尋の神隠し',type:'movie',locale:'zh'});
  assert.equal(f.calls[0].url.searchParams.get('query'),'千と千尋の神隠し');

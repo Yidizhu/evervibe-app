@@ -73,7 +73,7 @@ node node_modules/typescript/bin/tsc --noEmit
 npm run build
 ```
 
-Server tests use mocked providers and an in-memory database. They require no API credentials and do not incur provider charges. See [server/TESTING.md](server/TESTING.md) for the test setup.
+Server tests use mocked providers and an in-memory database. They require no API credentials and do not incur provider charges. The current suite contains 168 checks. See [server/TESTING.md](server/TESTING.md) for the test setup and [the recommendation repair record](docs/RECOMMENDATION_FIX.md) for the NYC regression and recovery behavior.
 
 ## Source layout
 

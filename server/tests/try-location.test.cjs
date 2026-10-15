@@ -2,10 +2,35 @@
 require('./offline.cjs');
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const {createTryService}=require('../source/try-service.cjs');
+const {requestParameters,cityDefinition}=require('../source/qloo-support.cjs');
 const ids={a:'11111111-1111-4111-8111-111111111111',b:'22222222-2222-4222-8222-222222222222',hamilton:'33333333-3333-4333-8333-333333333333',paris:'44444444-4444-4444-8444-444444444444',outside:'55555555-5555-4555-8555-555555555555'};
 const centres={hamilton:{lat:-37.787,lon:175.279},paris:{lat:48.857,lon:2.352}};
 const place=(city,id,location,countryCode)=>({entity_id:id,type:'urn:entity:place',name:city+' Museum',location,properties:{geocode:{city,country_code:countryCode}},tags:[{id:'urn:tag:genre:place:museum',name:'Museum'}]});
 const fixtures={hamilton:place('Hamilton',ids.hamilton,centres.hamilton,'NZ'),paris:place('Paris',ids.paris,centres.paris,'FR')};
+
+test('New York city names do not use the provider state centre or discard valid NYC venues',async()=>{
+ const nyc=place('New York',ids.hamilton,{lat:40.722,lon:-73.993},'US');
+ const upstate=place('New York state',ids.outside,{lat:42.923,lon:-75.598},'US');
+ const foreign={...nyc,entity_id:ids.paris,properties:{geocode:{country_code:'FR'}}};
+ const f=fixture({insights:async()=>Response.json({query:{localities:{filter:[{name:'New York',location:upstate.location}]}},results:{entities:[nyc,upstate,foreign]}})});await f.seed();
+ for(const city of ['New York, United States','New York City','NYC',' New York , USA ']){
+  const result=await f.service.assist(input({city}));
+  assert.deepEqual(result.items.map(item=>item.id),[nyc.entity_id]);
+  const url=f.calls.filter(call=>call.pathname==='/v2/insights').at(-1);
+  assert.equal(url.searchParams.get('filter.location'),'POINT(-74.006 40.7128)');
+  assert.equal(url.searchParams.get('filter.geocode.country_code'),'US');
+  assert(!url.searchParams.has('filter.location.query'));
+ }
+});
+
+test('NYC disambiguation does not rewrite other cities, state requests or device locations',()=>{
+ for(const city of ['New York State','York, United States','New York, United Kingdom','Paris, France']){
+  assert.equal(cityDefinition(city),undefined);
+  assert.equal(requestParameters('activity',{city,mood:'curious',interests:[]})['filter.location.query'],city);
+ }
+ const params=requestParameters('activity',{city:'New York, United States',location:centres.paris,mood:'curious',interests:[]});
+ assert.equal(params['filter.location'],'POINT(2.352 48.857)');assert.equal(params['filter.geocode.country_code'],undefined);
+});
 const input=overrides=>({locale:'en',city:'nearby',consent:true,vibes:{you:{entities:[ids.a],note:''},partner:{entities:[ids.b],note:''}},messages:[{from:'you',text:'Find an art museum for us.'}],...overrides});
 function fixture(options={}){
  const calls=[],contexts=[];

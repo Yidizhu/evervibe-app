@@ -86,6 +86,10 @@
       <div id="recommendations"></div>
       <div id="chat-status" class="chat-status" role="status"></div>
       <div id="chat-error" class="chat-error" role="alert"></div>
+      <div id="plan-recovery" class="request-actions plan-recovery" hidden>
+        <button type="button" id="recover-activity" data-i18n="recoverActivity">Find cultural places</button>
+        <button type="button" id="recover-movie" data-i18n="recoverMovie">Find a film</button>
+      </div>
       <form id="chat-form">
         <div class="speaker-row"><label for="speaker" data-i18n="speaking">Speaking as</label><select id="speaker"><option value="you">You</option><option value="partner">Sample partner</option></select><span class="fine" data-i18n="roleNote">Try either side of the conversation.</span></div>
         <div class="composer"><label class="visually-hidden" for="message" data-i18n="message">Message</label><textarea id="message" rows="2" maxlength="1500" placeholder="What would feel good to do together?"></textarea><button id="send" class="primary" type="submit" data-i18n="send">Send</button></div>

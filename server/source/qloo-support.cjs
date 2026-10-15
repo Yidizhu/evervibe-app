@@ -9,6 +9,16 @@ const CITIES = Object.freeze({
   auckland:{label:'Auckland',country:'New Zealand',countryCode:'NZ',lat:-36.8485,lon:174.7633}
 });
 const STORY_CITIES=Object.freeze({meet:'tokyo',date:'new-york',daily:'london',repair:'london',lifetime:'wellington',older:'wellington'});
+// A free-text "New York, United States" lookup can resolve to the state centre
+// while returning city venues. Resolve only explicit NYC aliases to our existing
+// public city centre; arbitrary cities and explicit state requests stay intact.
+const NYC_NAMES=new Set(['new york','new york city','nyc','new york, ny','new york city, ny',
+  ...['new york','new york city','nyc'].flatMap(name=>['united states','united states of america','usa','us'].map(country=>`${name}, ${country}`))]);
+function cityDefinition(value){
+  if(typeof value!=='string')return undefined;
+  const name=value.normalize('NFKC').trim().toLowerCase().replace(/\s+/g,' ').replace(/\s*,\s*/g,', ');
+  return Object.hasOwn(CITIES,name)?CITIES[name]:NYC_NAMES.has(name)?CITIES['new-york']:undefined;
+}
 const CATEGORY_VALUES=Object.freeze(['movie','date','activity','travel']);
 const PLANNING_VALUES=Object.freeze({
   cities:Object.freeze(Object.keys(CITIES)),
@@ -72,7 +82,7 @@ function distanceMetres(a,b) {
 function requestParameters(category,planning) {
   const params={'filter.type':category==='movie'?'urn:entity:movie':category==='travel'?'urn:entity:destination':'urn:entity:place'};
   // An explicit device point takes precedence; do not accidentally inherit the story's country.
-  const city=!planning.location&&Object.hasOwn(CITIES,planning.city)?CITIES[planning.city]:undefined;
+  const city=!planning.location?cityDefinition(planning.city):undefined;
   if(category!=='movie') {
     if(city)params['filter.geocode.country_code']=city.countryCode;
     if(category!=='travel'||planning.duration!=='long'||!city) {
@@ -96,4 +106,4 @@ function requestParameters(category,planning) {
   return params;
 }
 
-module.exports={CITIES,CATEGORY_VALUES,PLANNING_VALUES,DATE_TAGS,ACTIVITY_TAGS,validCity,normalizeLocation,normalizePlanning,requestParameters,distanceMetres};
+module.exports={CITIES,CATEGORY_VALUES,PLANNING_VALUES,DATE_TAGS,ACTIVITY_TAGS,validCity,normalizeLocation,normalizePlanning,requestParameters,distanceMetres,cityDefinition};

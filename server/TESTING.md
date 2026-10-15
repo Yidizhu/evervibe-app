@@ -24,10 +24,19 @@ the gated EVE suggestion bridge; cancellation and sanitized provider errors;
 same-origin requests, body bounds and short rolling-window protection; and D1
 catalog reuse across independent service instances.
 
-The current suite contains 105 checks, including separate A/B compare signals,
+The current suite contains 168 checks, including separate A/B compare signals,
 shared-tag parsing, cache expiry and invalidation, shared tags entering insights,
 consent and cancellation, honest empty/outage states and verified-candidate fallback
 when the final Gemini explanation has a transient failure.
+
+The 15 October 2026 regression checks reproduce a New York state-centre locality
+response that previously discarded valid NYC venues. Explicit NYC aliases now
+use the same city point for retrieval and distance validation. Tests retain
+country/radius rejection, arbitrary-city lookup and device-location precedence.
+Explicit place/film recovery skips only model intent routing; tests preserve
+consent, required location, cancellation, empty-result handling and existing-plan
+protection. Live provider and browser checks are recorded separately from these
+offline fixtures in `docs/RECOMMENDATION_FIX.md`.
 
 Only validated public Qloo entity facts and expiry timestamps are persisted in D1.
 Chat, notes and relationship progress are not saved there. Story plans are held in

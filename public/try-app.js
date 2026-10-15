@@ -128,11 +128,14 @@
     if(/RATE_LIMIT|BUSY/.test(code||''))return 'rate';
     if(/CONSENT/.test(code||''))return 'consentError';
     if(/NOT_CONFIGURED|MISSING_KEY/.test(code||''))return 'config';
+    if(/^GEMINI_(EMPTY_REPLY|PLAN_INVALID)$/.test(code||''))return 'unavailable';
     if(/NO_RECOMMENDATIONS|NO_FIT|EMPTY|NOT_FOUND/.test(code||''))return 'noFit';
     if(/INVALID|BAD_REQUEST|TOO_LONG/.test(code||''))return 'validation';
     if(/UNAVAILABLE|TIMEOUT/.test(code||''))return 'unavailable';
     return 'error';
   }
+  Object.assign(copy.en,{recoverActivity:'Find cultural places',recoverMovie:'Find a film',recoverActivityMessage:'Find a cultural place for us to explore together.',recoverMovieMessage:'Find a film for us to watch together.'});
+  Object.assign(copy.zh,{recoverActivity:'找一个文化场所',recoverMovie:'找一部电影',recoverActivityMessage:'帮我们找一个可以一起探索的文化场所。',recoverMovieMessage:'帮我们找一部适合一起看的电影。'});
   async function post(path, body, signal) {
     const response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal});
     let data;try{data=await response.json();}catch{throw new Error('INTERNAL_ERROR');}
@@ -304,6 +307,7 @@
     $('message').disabled=!canWrite();
     $('cancel').hidden=!state.busy;
     $('retry').hidden=!state.retry||state.busy||!canWrite()||(state.view==='direct'&&!state.autoPartner);
+    $('plan-recovery').hidden=state.view!=='plans'||state.busy||!canWrite()||!['noFit','unavailable'].includes(state.error)||!!state.plan?.items?.length;
     $('chat-status').textContent=state.view==='private'&&!state.sharing[state.speaker].eve?t('eveOff'):state.busy?t(state.busyKind==='companion'?'companionBusy':state.view==='private'?'privateBusy':'busy'):state.status?t(state.status):'';
     $('chat-error').textContent=state.error?t(state.error):'';
     if(!currentMessages().length)renderMessages();
@@ -361,6 +365,8 @@
     const selected=state.plan?.items.find(item=>item.id===state.selected);
     if(selected&&!state.plan.expired)body.selection={token:selected.contextToken||'',confirmed:{...state.confirmations}};
     else if(state.plan&&!state.plan.expired)body.offeredPlans=state.plan.items.map(item=>item.contextToken).filter(Boolean).slice(0,3);
+    const explicitRequest=state.messages.filter(message=>message.revision===revision&&message.from!=='eve'&&!message.simulated).at(-1)?.requestedCategory;
+    if(explicitRequest&&!body.selection&&!body.offeredPlans)body.requestedCategory=explicitRequest;
     try {
       const data=await post('/api/try/assist',body,controller.signal);
       if(token!==serials.assist||revision!==state.revision||!state.consent)return;
@@ -471,6 +477,11 @@
   $('message').addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();$('chat-form').requestSubmit();}});
   $('cancel').addEventListener('click',()=>{stopAssist();state.status='cancelled';state.retry=true;renderControls();renderPlan();});
   $('retry').addEventListener('click',()=>state.retryKind==='companion'?companionReply(state.view==='plans'):state.view==='private'?privateAssist():assist());
+  for(const category of ['activity','movie'])$('recover-'+category).addEventListener('click',()=>{
+    if(state.view!=='plans'||state.busy||!canWrite()||state.plan?.items?.length)return;
+    state.messages.push({from:state.speaker,text:t(category==='movie'?'recoverMovieMessage':'recoverActivityMessage'),revision:state.revision,requestedCategory:category});
+    renderMessages();assist();
+  });
   $('reset').addEventListener('click',()=>{
     controllers.example?.abort();controllers.example=null;state.exampleBusy=false;stopCompare();
     stopAssist();stopConnectionSearch();state.connection={opened:false,busy:false,status:null,error:false};$('manual-vibes').open=false;for(const owner of ['you','partner']){abortSearch(owner);state.vibes[owner]={entities:[],note:''};state.search[owner]={query:'',type:'movie',items:[],busy:false,error:null,searched:false};$(owner+'-query').value='';$(owner+'-type').value='movie';$(owner+'-note').value='';}

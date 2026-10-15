@@ -20,3 +20,7 @@ main{padding-top:22px}.conversation{margin-top:0}.conversation-head #show-blackb
 
 /* One active search area; free city entry is separate from device location. */
 .location-current{font-size:14px;color:var(--ink);font-weight:600;margin:0 0 10px}.location-on::before{content:'●';color:var(--green);font-size:10px;margin-right:8px}.location-field .city-field{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}.city-field input{flex:1 1 170px;min-width:0;width:100%;font-size:13px}.city-field button{background:var(--sage);font-size:12px}.location-field .location-actions{margin-top:0}#manual-location{margin-top:8px}#manual-location>summary{font-size:12px;min-height:40px}.demo-reply-setting{display:flex;align-items:center;gap:10px;margin:18px 0 4px;font-size:13px}.demo-reply-setting input{width:17px;height:17px;accent-color:var(--green)}.demo-reply-note{font-size:11px;color:var(--muted);padding:4px 24px 0;margin:0}.review-other{margin-left:14px;min-height:40px}@media(max-width:700px){.demo-reply-note{padding:4px 18px 0}.review-other{display:block;margin-left:0}.city-field button{min-height:42px}.location-field .city-field input{max-width:none}.demo-reply-setting{font-size:12px}}
+/* Explicit recovery remains available without another model-routing request. */
+.plan-recovery{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0 14px}
+.plan-recovery[hidden]{display:none}
+.plan-recovery button{min-height:44px;padding:9px 16px;border:1px solid #64877f;border-radius:14px;background:#f4f8f5;color:#294c45;cursor:pointer}

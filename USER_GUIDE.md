@@ -89,7 +89,7 @@ Your language preference is remembered on the device. Chats, selected plans, mem
 - **An interrupted reply:** use **Try again** when available. You can cancel an in-progress response; your message remains in the conversation.
 - **Anya cannot reply:** retry, or turn off automatic demo replies and switch perspectives to write her response yourself.
 - **Location unavailable:** enter a city and country in Settings. If the place cannot be matched, add the country or try another name; no story city is chosen on your behalf.
-- **No suitable recommendation:** change the requested activity or add another interest. The app does not invent a venue to fill the gap.
+- **No suitable recommendation or a planning service timeout:** use **Find cultural places** or **Find a film** when offered, or change the request or interests. The buttons express the activity type directly while keeping both Vibes and the same sharing and location checks. They appear only when there is no current set of plan candidates. The app does not invent a venue to fill the gap.
 - **Live services unavailable:** authored stories remain viewable, but a service error is not a new Qloo result. A local installation needs server-side provider configuration as described in the [README](README.md).
 
 This is a single-browser prototype, not a real multi-user dating service. It does not make purchases, reservations or external messages, and returned places do not confirm current availability or venue facilities. The app's session behavior does not determine the separate data-processing terms of its API providers or hosting service.
