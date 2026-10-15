@@ -5,6 +5,7 @@
 const {AppError}=require('./eve-service.cjs');
 const {CITIES,CATEGORY_VALUES,PLANNING_VALUES,validCity,normalizeLocation,normalizePlanning,requestParameters,distanceMetres,cityDefinition}=require('./qloo-support.cjs');
 const {readSharedTags,bridgeSignals}=require('./taste-bridge.cjs');
+const {explainedCandidates}=require('./taste-discovery.cjs');
 const QLOO_ORIGIN='https://hackathon.api.qloo.com';
 const SEARCH_TYPES=['movie','artist','book'];
 const fail=(status,code,message)=>{throw new AppError(status,code,message);};
@@ -83,7 +84,7 @@ function createTryService(options={}){
  // get(id,{signal}) -> {expires,item}|null; set(id,entry,{ttlSeconds,signal}) -> void.
  const catalogStore=options.catalogStore,catalogTimeoutMs=options.catalogTimeoutMs??5000;
  if(catalogStore&&(typeof catalogStore.get!=='function'||typeof catalogStore.set!=='function'))throw new TypeError('Catalog store must implement get and set.');
- const entities=new Map(),searches=new Map(),comparisons=new Map();let cooldownUntil=0;
+ const entities=new Map(),searches=new Map(),comparisons=new Map(),discoveries=new Map();let cooldownUntil=0;
  function aborted(signal){if(signal?.aborted)fail(499,'TRY_CANCELLED','Request cancelled.');}
  function prune(cache,limit){for(const [key,entry] of cache)if(entry.expires<=now())cache.delete(key);while(cache.size>=limit)cache.delete(cache.keys().next().value);}
  function key(){
@@ -258,7 +259,30 @@ function createTryService(options={}){
  }
  async function compare(input,{signal}={}){
   const context=await contextFor({...input,messages:[{from:'you',text:'Compare our selected interests.'}]},signal);
-  return compareProfiles(context,signal);
+  if(input.discover!==true)return compareProfiles(context,signal);
+  const [themes,discovery]=await Promise.all([compareProfiles(context,signal),discoverBridge(context,signal)]);
+  return {...themes,discovery};
+ }
+ async function discoverBridge(context,signal){
+  const groups=['you','partner'].map(owner=>context.vibes[owner].entities.map(item=>item.id).sort());
+  const ids=[...new Set(groups.flat())],cacheKey=JSON.stringify(groups),saved=discoveries.get(cacheKey);
+  let result=saved&&saved.expires>now()?structuredClone(saved.result):null;
+  if(!result){
+   try{
+    const body=await request('/v2/insights',{'filter.type':'urn:entity:movie','signal.interests.entities':ids.join(','),'filter.exclude.entities':ids.join(','),'feature.explainability':'true',take:'20'},signal);
+    if(!Array.isArray(body.results?.entities))throw new Error('Invalid recommendation response');
+    let items=body.query?.explainability?.warning?[]:explainedCandidates(body.results.entities.slice(0,20),groups,catalogItem);
+    let status=items.length?'ready':'empty';
+    if(!items.length){
+     items=[...new Map(body.results.entities.slice(0,20).map(entity=>catalogItem(entity,'movie')).filter(item=>item&&!ids.includes(item.id)).map(item=>[item.id,item])).values()].slice(0,1);
+     if(items.length)status='exploratory';
+    }
+    result={status,source:'qloo',category:'movie',items};
+   }catch(error){aborted(signal);result={status:'unavailable',source:'qloo',category:'movie',items:[]};}
+   prune(discoveries,128);discoveries.set(cacheKey,{expires:now()+(result.status==='unavailable'?30000:15*60*1000),result:structuredClone(result)});
+  }
+  const items=await Promise.all(result.items.map(async item=>({...item,contextToken:await signPlanItem(item,'movie',context,signal)})));
+  return {...result,items,cached:!!(saved&&saved.expires>now())};
  }
  async function privateChat(input,{signal}={}){
   aborted(signal);
@@ -367,3 +391,4 @@ function createTryService(options={}){
  return {search,compare,privateChat,assist};
 }
 module.exports={createTryService};
+

@@ -24,3 +24,5 @@ main{padding-top:22px}.conversation{margin-top:0}.conversation-head #show-blackb
 .plan-recovery{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0 14px}
 .plan-recovery[hidden]{display:none}
 .plan-recovery button{min-height:44px;padding:9px 16px;border:1px solid #64877f;border-radius:14px;background:#f4f8f5;color:#294c45;cursor:pointer}
+
+.bridge-discovery{background:#ffffffb8;border:1px solid #d2ddd4;border-radius:14px;padding:20px;margin:16px 0}.bridge-discovery h4{font:400 26px var(--serif);margin:0 0 10px}.bridge-discovery .primary{margin:14px 0;min-height:44px}.bridge-discovery .bridge-inputs{border-top:1px solid #d2ddd4;padding-top:12px}

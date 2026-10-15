@@ -164,7 +164,7 @@
   const tagZh={'Comedy':'喜剧','Stylized':'鲜明风格','Eccentric':'古灵精怪','Drama':'剧情','Romance':'浪漫','Romantic':'浪漫','Cinematic':'电影感','Cinématic':'电影感','Quirky':'别具一格','Thought-provoking':'引人思考','Atmospheric':'氛围感','Melancholic':'淡淡忧伤'};
   function renderBridge(){
     const card=$('taste-bridge');card.replaceChildren();card.hidden=state.view!=='plans'||!state.started||!state.consent||(!state.bridge&&!state.bridgeBusy);if(card.hidden)return;
-    card.append(node('h3','',t('bridgeTitle')));
+    card.append(node('h3','',state.locale==='zh'?'口味之桥':'A bridge between your worlds'));
     if(state.bridgeBusy){card.append(node('p','fine',t('bridgeLoading')));return;}
     const bridge=state.bridge;
     if(bridge?.status==='ready'&&Array.isArray(bridge.shared)){
@@ -172,11 +172,28 @@
       const seen=new Set(),themes=bridge.shared.filter(tag=>{const name=String(tag.name||'').trim().toLocaleLowerCase();if(!name||seen.has(name))return false;seen.add(name);return true;});
       const chips=node('div','bridge-tags');themes.slice(0,3).forEach(tag=>chips.append(node('span','',state.locale==='zh'?(tagZh[tag.name]||tag.name):tag.name)));card.append(chips,node('p','fine',t('bridgeSource')));
       if(bridge.cached)card.append(node('p','fine',t('bridgeCache')));
-    }else{card.append(node('p','fine',t(bridge?.status==='empty'?'bridgeEmpty':'bridgeUnavailable')));if(bridge?.status!=='empty')card.append(button(t('retry'),()=>compareVibes(),'text-button'));}
+    }else{card.append(node('p','fine',state.locale==='zh'?'不必先喜欢同样的东西，才能一起发现新的喜欢。':'You don’t have to love the same things to discover something together.'));}
+    const discovery=bridge?.discovery;
+    if(['ready','exploratory'].includes(discovery?.status)&&discovery.items?.length){
+      const flow=node('div','bridge-inputs');for(const owner of ['you','partner'])flow.append(node('span','',t(owner)+' · '+state.vibes[owner].entities.map(e=>e.title).join(' + ')));if(bridge.status!=='ready')card.append(flow);
+      card.append(node('p','',discovery.status==='exploratory'?(state.locale==='zh'?'从一个新发现开始，一起看看喜不喜欢。':'A new starting point — discover whether you enjoy it together.'):(state.locale==='zh'?'你们都没有选过它，Qloo 找到了连接两份 Vibe 的新发现。':'Neither of you picked this — a new discovery connecting both your Vibes.')));
+      discovery.items.slice(0,1).forEach(item=>{
+        const pick=node('article','bridge-discovery');pick.append(node('h4','',item.title+(item.year?' · '+item.year:'')),node('p','fine',state.locale==='zh'?'双方的原始选择 → 一起探索的新电影':'Your two starting points → a new film to explore together'));
+        const choose=button(state.locale==='zh'?'一起考虑这部电影':'Consider this together',()=>{
+          if(state.busy||!state.started||!state.consent)return;
+          state.plan={items:[{...item}],seeds:Object.entries(state.vibes).flatMap(([owner,vibe])=>vibe.entities.map(e=>({...e,owner}))),source:'qloo',expired:false};state.selected=item.id;state.confirmations={you:false,partner:false};renderPlan();
+          $('recommendations').scrollIntoView({block:'center',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+        },'primary');choose.disabled=state.busy;pick.append(choose);const links=node('div','bridge-inputs');for(const owner of ['you','partner']){const evidenceIds=new Set((item.evidence?.[owner]||[]).map(e=>e.id));links.append(node('span','',t(owner)+' → '+state.vibes[owner].entities.filter(e=>evidenceIds.has(e.id)).map(e=>e.title).join(' + ')));}pick.append(links);card.append(pick);
+      });
+      if(discovery.status==='exploratory'){card.append(node('p','fine',state.locale==='zh'?'Qloo 使用了双方兴趣返回这个探索选项，但没有提供足够的双侧贡献证据；它不是已验证的共同口味。':'Qloo returned this exploration idea using both inputs, but did not provide enough evidence of contributions from both sides. It is not a verified shared taste.'));return;}
+      const proof=node('details','plan-details');proof.append(node('summary','',state.locale==='zh'?'为什么是它？':'Why this bridge?'),node('p','fine',state.locale==='zh'?'Qloo 的推荐解释显示双方已选兴趣都对这部电影有贡献。我们优先展示两侧贡献较均衡的新作品；这不是喜欢的概率或感情匹配分数。':'Qloo’s explanation identifies contributions from both Vibes. We prioritize new films with more balanced input contributions. These describe the recommendation, not how much either person will like it or romantic compatibility.'));card.append(proof);
+    }else if(discovery){
+      card.append(node('p','fine',state.locale==='zh'?(discovery.status==='empty'?'这次还没找到经双方推荐验证的新电影。可以换一个兴趣，或继续一起安排。':'新的发现暂时连接不上，可以重试或继续一起安排。'):(discovery.status==='empty'?'Qloo did not return a new film with evidence from both Vibes this time. Try another interest, or keep planning together.':'New discoveries are temporarily unavailable. Retry, or keep planning together.')),button(t('retry'),()=>compareVibes(),'text-button'));
+    }
   }
   async function compareVibes(){
     if(!state.started||!state.consent)return;controllers.compare?.abort();const controller=new AbortController(),revision=state.revision;controllers.compare=controller;state.bridgeBusy=true;renderBridge();
-    try{const result=await post('/api/try/compare',sharedInput(),controller.signal);if(!controller.signal.aborted&&revision===state.revision&&state.consent)state.bridge=result;}
+    try{const result=await post('/api/try/compare',{...sharedInput(),discover:true},controller.signal);if(!controller.signal.aborted&&revision===state.revision&&state.consent)state.bridge=result;}
     catch(error){if(!controller.signal.aborted&&revision===state.revision)state.bridge={status:'unavailable',shared:[]};}
     finally{if(controllers.compare===controller){controllers.compare=null;state.bridgeBusy=false;renderBridge();}}
   }
@@ -373,7 +390,7 @@
       if(typeof data.text!=='string'||!data.text.trim())throw new Error('INTERNAL_ERROR');
       state.messages.push({from:'eve',text:data.text,revision,sourceLang:data.sourceLang||body.locale});
       const items=Array.isArray(data.items)?data.items.filter(item=>item&&typeof item.id==='string'&&typeof item.title==='string').slice(0,3):[];
-      if(data.bridge){state.bridge=data.bridge;renderBridge();}
+      if(data.bridge){state.bridge={...data.bridge,discovery:state.bridge?.discovery};renderBridge();}
       if(items.length&&(!state.selected||data.replaceSelection===true)){state.plan={items,seeds:data.seeds||[],source:data.source,expired:false};state.selected=null;state.confirmations={you:false,partner:false};}
       renderMessages();renderPlan();
     }catch(error){if(token===serials.assist&&error.name!=='AbortError'){
@@ -405,8 +422,8 @@
   }
   function applyCity(){
     const city=$('city').value.trim();
-    if(!city||city.length>100||/[\p{Cc}\u2028\u2029<>\\/]/u.test(city)||/(?:[a-z][a-z\d+.-]*:|www\.)/iu.test(city)){state.setup='invalidCity';renderControls();$('city').focus();return;}
-    clearLocation();state.city=city;state.setup=null;invalidate();$('manual-location').open=false;
+    if(!city||city.length>100||/[\p{Cc}\u2028\u2029<>\\/]/u.test(city)||/(?:[a-z][a-z\d+.-]*:|www\.)/iu.test(city)){state.setup='invalidCity';renderControls();$('city').focus();return false;}
+    clearLocation();state.city=city;state.setup=null;invalidate();$('manual-location').open=false;return true;
   }
   async function privateAssist(){
     if(state.view!=='private'||state.busy||!canWrite())return;
@@ -459,6 +476,7 @@
   $('start').addEventListener('click',()=>{
     if(!state.vibes.you.entities.length){state.setup='needYou';renderControls();$('you-query').focus();return;}
     if(!state.vibes.partner.entities.length){state.setup='needPartner';$('manual-vibes').open=true;renderControls();$('partner-query').focus();return;}
+    if($('manual-location').open&&$('city').value.trim()&&(!state.location||$('city').value.trim()!==state.city)){if(!applyCity())return;}
     if(!state.location&&!state.city){state.setup='needLocation';renderControls();$('manual-location').open=true;$('city').focus();return;}
     if(!state.consent){state.setup='needConsent';renderControls();$('share-'+state.speaker).focus();return;}
     state.connection.opened=true;state.started=true;state.everStarted=true;state.setup='ready';state.status=null;$('vibe-setup').open=false;closeSettings();translate();compareVibes();

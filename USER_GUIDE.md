@@ -94,3 +94,7 @@ Your language preference is remembered on the device. Chats, selected plans, mem
 - **Live services unavailable:** authored stories remain viewable, but a service error is not a new Qloo result. A local installation needs server-side provider configuration as described in the [README](README.md).
 
 This is a single-browser prototype, not a real multi-user dating service. It does not make purchases, reservations or external messages, and returned places do not confirm current availability or venue facilities. The app's session behavior does not determine the separate data-processing terms of its API providers or hosting service.
+
+### Discover a bridge
+
+After selecting both Vibes and enabling sharing, enter a city and select Start together directly. You do not need to press Use this city first. Make plans opens with shared themes when available and a new film supported by Qloo contributions from both Vibes. Open Why this bridge? to see the evidence boundary. Consider this together creates a proposed plan; review and confirm each perspective separately. Missing provider evidence has an explicit retry path and never becomes a made-up common interest.

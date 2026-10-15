@@ -833,6 +833,34 @@ var require_eve_proactive = __commonJS({
   }
 });
 
+// server/source/taste-discovery.cjs
+var require_taste_discovery = __commonJS({
+  "server/source/taste-discovery.cjs"(exports, module) {
+    "use strict";
+    function explainedCandidates(entities, groups, catalogItem) {
+      const excluded = new Set(groups.flat()), seen = /* @__PURE__ */ new Set();
+      return entities.map((entity) => {
+        const item = catalogItem(entity, "movie"), explain = entity.query?.explainability;
+        if (!item || excluded.has(item.id) || seen.has(item.id) || explain?.warning) return;
+        seen.add(item.id);
+        const rows = explain?.["signal.interests.entities"];
+        if (!Array.isArray(rows)) return;
+        const byId = /* @__PURE__ */ new Map();
+        for (const row of rows) {
+          const id = typeof row?.entity_id === "string" ? row.entity_id.toLowerCase() : "";
+          if (!excluded.has(id) || byId.has(id) || typeof row.score !== "number" || !Number.isFinite(row.score) || row.score < 0 || row.score > 1) continue;
+          byId.set(id, row.score);
+        }
+        const contributions = groups.map((ids) => ids.filter((id) => byId.has(id)).map((id) => ({ id, score: byId.get(id) })));
+        const totals = contributions.map((rows2) => rows2.reduce((sum, row) => sum + row.score, 0));
+        if (totals.some((total) => total < 0.1) || [...byId.values()].reduce((a, b) => a + b, 0) > 1.001) return;
+        return { ...item, evidence: { method: "qloo-explainability", you: contributions[0], partner: contributions[1] }, balance: Math.min(...totals) / Math.max(...totals) };
+      }).filter(Boolean).sort((a, b) => b.balance - a.balance).slice(0, 3).map(({ balance, ...item }) => item);
+    }
+    module.exports = { explainedCandidates };
+  }
+});
+
 // server/source/try-service.cjs
 var require_try_service = __commonJS({
   "server/source/try-service.cjs"(exports, module) {
@@ -840,6 +868,7 @@ var require_try_service = __commonJS({
     var { AppError } = require_eve_service();
     var { CITIES, CATEGORY_VALUES, PLANNING_VALUES, validCity, normalizeLocation, normalizePlanning, requestParameters, distanceMetres, cityDefinition } = require_qloo_support();
     var { readSharedTags, bridgeSignals } = require_taste_bridge();
+    var { explainedCandidates } = require_taste_discovery();
     var QLOO_ORIGIN = "https://hackathon.api.qloo.com";
     var SEARCH_TYPES = ["movie", "artist", "book"];
     var fail = (status, code, message) => {
@@ -919,7 +948,7 @@ var require_try_service = __commonJS({
       const entityTtlMs = options.entityTtlMs ?? 24 * 60 * 60 * 1e3, searchTtlMs = options.searchTtlMs ?? 15 * 60 * 1e3;
       const catalogStore = options.catalogStore, catalogTimeoutMs = options.catalogTimeoutMs ?? 5e3;
       if (catalogStore && (typeof catalogStore.get !== "function" || typeof catalogStore.set !== "function")) throw new TypeError("Catalog store must implement get and set.");
-      const entities = /* @__PURE__ */ new Map(), searches = /* @__PURE__ */ new Map(), comparisons = /* @__PURE__ */ new Map();
+      const entities = /* @__PURE__ */ new Map(), searches = /* @__PURE__ */ new Map(), comparisons = /* @__PURE__ */ new Map(), discoveries = /* @__PURE__ */ new Map();
       let cooldownUntil = 0;
       function aborted(signal) {
         if (signal?.aborted) fail(499, "TRY_CANCELLED", "Request cancelled.");
@@ -1173,7 +1202,34 @@ var require_try_service = __commonJS({
       }
       async function compare(input, { signal } = {}) {
         const context = await contextFor({ ...input, messages: [{ from: "you", text: "Compare our selected interests." }] }, signal);
-        return compareProfiles(context, signal);
+        if (input.discover !== true) return compareProfiles(context, signal);
+        const [themes, discovery] = await Promise.all([compareProfiles(context, signal), discoverBridge(context, signal)]);
+        return { ...themes, discovery };
+      }
+      async function discoverBridge(context, signal) {
+        const groups = ["you", "partner"].map((owner) => context.vibes[owner].entities.map((item) => item.id).sort());
+        const ids = [...new Set(groups.flat())], cacheKey = JSON.stringify(groups), saved = discoveries.get(cacheKey);
+        let result = saved && saved.expires > now() ? structuredClone(saved.result) : null;
+        if (!result) {
+          try {
+            const body = await request("/v2/insights", { "filter.type": "urn:entity:movie", "signal.interests.entities": ids.join(","), "filter.exclude.entities": ids.join(","), "feature.explainability": "true", take: "20" }, signal);
+            if (!Array.isArray(body.results?.entities)) throw new Error("Invalid recommendation response");
+            let items2 = body.query?.explainability?.warning ? [] : explainedCandidates(body.results.entities.slice(0, 20), groups, catalogItem);
+            let status = items2.length ? "ready" : "empty";
+            if (!items2.length) {
+              items2 = [...new Map(body.results.entities.slice(0, 20).map((entity) => catalogItem(entity, "movie")).filter((item) => item && !ids.includes(item.id)).map((item) => [item.id, item])).values()].slice(0, 1);
+              if (items2.length) status = "exploratory";
+            }
+            result = { status, source: "qloo", category: "movie", items: items2 };
+          } catch (error) {
+            aborted(signal);
+            result = { status: "unavailable", source: "qloo", category: "movie", items: [] };
+          }
+          prune(discoveries, 128);
+          discoveries.set(cacheKey, { expires: now() + (result.status === "unavailable" ? 3e4 : 15 * 60 * 1e3), result: structuredClone(result) });
+        }
+        const items = await Promise.all(result.items.map(async (item) => ({ ...item, contextToken: await signPlanItem(item, "movie", context, signal) })));
+        return { ...result, items, cached: !!(saved && saved.expires > now()) };
       }
       async function privateChat(input, { signal } = {}) {
         aborted(signal);

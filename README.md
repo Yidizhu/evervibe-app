@@ -60,7 +60,7 @@ node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1
 Then start the built Worker:
 
 ```sh
-npm start -- --port 5173 --env-file "/absolute/path/to/your/project/.env.local"
+npm start -- --port 5173 --env-file .env.local
 ```
 
 Open `http://127.0.0.1:5173/`. To inspect authored UI without credentials, omit `--env-file .env.local`; live requests will report that services are unavailable. `/api/status` reports configuration status without returning credentials.
@@ -73,7 +73,7 @@ node node_modules/typescript/bin/tsc --noEmit
 npm run build
 ```
 
-Server tests use mocked providers and an in-memory database. They require no API credentials and do not incur provider charges. The current suite contains 170 checks. See [server/TESTING.md](server/TESTING.md) for the test setup and [the recommendation repair record](docs/RECOMMENDATION_FIX.md) for the NYC regression and recovery behavior.
+Server tests use mocked providers and an in-memory database. They require no API credentials and do not incur provider charges. The current suite contains 174 checks. See [server/TESTING.md](server/TESTING.md) for the test setup and [the recommendation repair record](docs/RECOMMENDATION_FIX.md) for the NYC regression and recovery behavior.
 
 ## Source layout
 
@@ -113,3 +113,11 @@ Food belongs in that cultural vision. Qloo documents [restaurant discovery](http
 Project-authored source and documentation are under [MIT](LICENSE). Generated images, the paid Tripo model, dependencies, provider data and any video audio have separate provenance and terms: [ASSETS.md](ASSETS.md) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 No music is bundled in the app. Private notes, key screenshots, billing records, generation receipts, credentials and local logs are excluded from the release.
+
+## A bridge between different tastes
+
+Try now requests Qloo Insights with both sets of public entity IDs and `feature.explainability=true`. A new film qualifies only when Qloo returns contributions from both Vibes (at least 0.1 per side); selected works are excluded. We order qualified results by balanced input contributions. This is an application selection rule over provider evidence, not a romantic compatibility score or a guarantee of individual enjoyment. Missing evidence is never replaced with invented themes. The bridge can be considered and confirmed by both demo perspectives in Make plans.
+
+## Development provenance and feedback
+
+Development began in a local working folder. The public repository was introduced later as a clean product-source snapshot, excluding credentials, personal notes and internal preparation files. Its initial commit count therefore does not represent the full development history; subsequent fixes are recorded as normal commits. We do not backdate or manufacture commits. Tests and live checks are engineering validation, not independent user research. The creator has supplied hands-on feedback, but no independent participant study or relationship-outcome validation has been completed.
