@@ -86,6 +86,7 @@ Your language preference is remembered on the device. Chats, selected plans, mem
 - **No search result:** try another title or name. If Anya's sample film cannot load, her profile and the link to the stories remain available; edit her sample Vibe or retry the search.
 - **Expired idea details:** clear the choice and ask for fresh ideas. The conversation stays in place; an expired reference does not silently generate a replacement.
 - **Expired interests:** remove the affected selections, search again and add fresh results.
+- **A slow recommendation:** some cultural queries take longer than a title search. Keep the page open while EVE works, or use **Cancel response** to stop. A timeout keeps your conversation available for a manual retry.
 - **An interrupted reply:** use **Try again** when available. You can cancel an in-progress response; your message remains in the conversation.
 - **Anya cannot reply:** retry, or turn off automatic demo replies and switch perspectives to write her response yourself.
 - **Location unavailable:** enter a city and country in Settings. If the place cannot be matched, add the country or try another name; no story city is chosen on your behalf.

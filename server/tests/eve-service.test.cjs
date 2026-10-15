@@ -351,3 +351,17 @@ test('venue cache separates category, city, mood and interests while language ch
   await service.recommend({...request,planning:{mood:'gentle',interests:['art']}});
   assert.equal(calls.length,6);
 });
+
+
+test('story insights permits slower discovery but retains a deadline and request budget',async()=>{
+ const handle=async(url,{signal})=>{
+  if(url.pathname==='/search')return response({results:[url.searchParams.get('query')==='Knives Out'?entity('Knives Out',ids[0],2019):entity('Amélie',ids[1],2001)]});
+  if(url.pathname==='/v2/analysis/compare')return response({results:{tags:[]}});
+  await new Promise((resolve,reject)=>{const timer=setTimeout(resolve,35);signal.addEventListener('abort',()=>{clearTimeout(timer);reject(new Error('aborted'));},{once:true});});
+  return response({results:{entities:[entity('Slow real candidate',ids[2],2020)]}});
+ };
+ const slower=fixture({handle,timeoutMs:10,insightsTimeoutMs:150});
+ const result=await slower.service.recommend(input());assert.equal(result.items[0].id,ids[2]);assert.equal(slower.calls.length,4);
+ const bounded=fixture({handle,timeoutMs:10,insightsTimeoutMs:15});
+ await assert.rejects(bounded.service.recommend(input()),{code:'QLOO_TIMEOUT'});assert.equal(bounded.calls.length,4);
+});

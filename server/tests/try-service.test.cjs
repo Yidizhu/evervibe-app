@@ -404,3 +404,18 @@ test('no overlap and compare outages stay explicit while entity-based recommenda
   const count=f.calls.length;await f.service.compare(request());assert.equal(f.calls.length,count,'Failure and empty results are briefly cached');
  }
 });
+
+
+test('insights has a longer bounded budget than search without automatic retries',async()=>{
+ const onFetch=async(url,{signal})=>{
+  if(url.pathname==='/search')return Response.json({results:[catalog[url.searchParams.get('types').replace('urn:entity:','')]]});
+  if(url.pathname==='/v2/analysis/compare')return Response.json({results:{tags:[]}});
+  await new Promise((resolve,reject)=>{const timer=setTimeout(resolve,35);signal.addEventListener('abort',()=>{clearTimeout(timer);reject(new Error('aborted'));},{once:true});});
+  return Response.json({results:{entities:[place()]}});
+ };
+ const slower=fixture({onFetch,service:{timeoutMs:10,insightsTimeoutMs:150}});await slower.seed();
+ assert.equal((await slower.service.assist(request())).items[0].id,ids.place);
+ const bounded=fixture({onFetch,service:{timeoutMs:10,insightsTimeoutMs:15}});await bounded.seed();
+ await assert.rejects(bounded.service.assist(request()),{code:'QLOO_TIMEOUT'});
+ assert.equal(bounded.calls.filter(call=>call.url.pathname==='/v2/insights').length,1);
+});

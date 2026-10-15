@@ -43,6 +43,7 @@ function createEveService(options={}) {
   const fetchImpl=options.fetch||globalThis.fetch;
   const now=options.now||Date.now;
   const timeoutMs=options.timeoutMs??12000;
+  const insightsTimeoutMs=options.insightsTimeoutMs??options.timeoutMs??30000;
   const resultTtlMs=options.resultTtlMs??30*60*1000;
   const entityTtlMs=options.entityTtlMs??24*60*60*1000;
   const cache=new Map(), entities=new Map(), pending=new Map(), comparisons=new Map();
@@ -66,7 +67,7 @@ function createEveService(options={}) {
     const apiKey=configuration();
     const url=new URL(endpoint,QLOO_ORIGIN);url.search=new URLSearchParams(params).toString();
     const controller=new AbortController();
-    const timer=setTimeout(()=>controller.abort(),timeoutMs);
+    const timer=setTimeout(()=>controller.abort(),endpoint==='/v2/insights'?insightsTimeoutMs:timeoutMs);
     try {
       // Workers supports manual, not error. Never follow a redirect with the key;
       // the non-ok response check below also rejects every 3xx response.

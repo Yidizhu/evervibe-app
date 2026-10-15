@@ -252,6 +252,7 @@ var require_eve_service = __commonJS({
       const fetchImpl = options.fetch || globalThis.fetch;
       const now = options.now || Date.now;
       const timeoutMs = options.timeoutMs ?? 12e3;
+      const insightsTimeoutMs = options.insightsTimeoutMs ?? options.timeoutMs ?? 3e4;
       const resultTtlMs = options.resultTtlMs ?? 30 * 60 * 1e3;
       const entityTtlMs = options.entityTtlMs ?? 24 * 60 * 60 * 1e3;
       const cache = /* @__PURE__ */ new Map(), entities = /* @__PURE__ */ new Map(), pending = /* @__PURE__ */ new Map(), comparisons = /* @__PURE__ */ new Map();
@@ -273,7 +274,7 @@ var require_eve_service = __commonJS({
         const url = new URL(endpoint, QLOO_ORIGIN);
         url.search = new URLSearchParams(params).toString();
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        const timer = setTimeout(() => controller.abort(), endpoint === "/v2/insights" ? insightsTimeoutMs : timeoutMs);
         try {
           const response = await fetchImpl(url, { method: "GET", headers: { accept: "application/json", "X-Api-Key": apiKey }, redirect: "manual", signal: AbortSignal.any([controller.signal, ...budget.signal ? [budget.signal] : []]) });
           if (response.status === 429) {
@@ -914,6 +915,7 @@ var require_try_service = __commonJS({
       const env = options.env || {}, fetchImpl = options.fetch || globalThis.fetch, now = options.now || Date.now;
       const gemini = options.gemini;
       const timeoutMs = options.timeoutMs ?? 12e3, geminiTimeoutMs = options.geminiTimeoutMs ?? 3e4;
+      const insightsTimeoutMs = options.insightsTimeoutMs ?? options.timeoutMs ?? 3e4;
       const entityTtlMs = options.entityTtlMs ?? 24 * 60 * 60 * 1e3, searchTtlMs = options.searchTtlMs ?? 15 * 60 * 1e3;
       const catalogStore = options.catalogStore, catalogTimeoutMs = options.catalogTimeoutMs ?? 5e3;
       if (catalogStore && (typeof catalogStore.get !== "function" || typeof catalogStore.set !== "function")) throw new TypeError("Catalog store must implement get and set.");
@@ -1046,7 +1048,7 @@ var require_try_service = __commonJS({
             aborted(combined);
             if (!object(body) || body.success === false) fail(502, "QLOO_RESPONSE_INVALID", "Qloo returned an unexpected response.");
             return body;
-          }, signal, timeoutMs, "QLOO_TIMEOUT");
+          }, signal, endpoint === "/v2/insights" ? insightsTimeoutMs : timeoutMs, "QLOO_TIMEOUT");
         } catch (error) {
           aborted(signal);
           if (error instanceof AppError) throw error;

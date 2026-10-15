@@ -76,6 +76,8 @@ function createTryService(options={}){
  // Reuse the host's Gemini service; never create a second provider client here.
  const gemini=options.gemini;
  const timeoutMs=options.timeoutMs??12000,geminiTimeoutMs=options.geminiTimeoutMs??30000;
+ // Live movie insights can take about 25 seconds; catalog search stays shorter.
+ const insightsTimeoutMs=options.insightsTimeoutMs??options.timeoutMs??30000;
  const entityTtlMs=options.entityTtlMs??24*60*60*1000,searchTtlMs=options.searchTtlMs??15*60*1000;
  // Optional shared store for multi-instance hosts. Entries contain public Qloo facts only.
  // get(id,{signal}) -> {expires,item}|null; set(id,entry,{ttlSeconds,signal}) -> void.
@@ -159,7 +161,7 @@ function createTryService(options={}){
     if(!response.ok)fail(502,'QLOO_UNAVAILABLE','Qloo could not complete this request.');
     let body;try{body=await response.json();}catch{fail(502,'QLOO_RESPONSE_INVALID','Qloo returned an unreadable response.');}
     aborted(combined);if(!object(body)||body.success===false)fail(502,'QLOO_RESPONSE_INVALID','Qloo returned an unexpected response.');return body;
-   },signal,timeoutMs,'QLOO_TIMEOUT');
+   },signal,endpoint==='/v2/insights'?insightsTimeoutMs:timeoutMs,'QLOO_TIMEOUT');
   }catch(error){aborted(signal);if(error instanceof AppError)throw error;fail(502,'QLOO_UNAVAILABLE','Qloo could not be reached.');}
  }
  async function structured(system,context,schema,signal,maxOutput){
