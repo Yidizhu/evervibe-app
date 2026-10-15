@@ -2,20 +2,22 @@
 
 EverVibe helps two people turn the things they love into something to do, discuss and remember together. You can bring your own interests or explore four fictional couples' stories. The experience opens in English; choose English or Simplified Chinese in **Settings**.
 
-## Start with your own Vibe
+## Try the interactive app
 
-Open **Try your own Vibe** from the home page, or visit `/try.html`.
+Open the [interactive app](https://evervibe.zesty-mesa-1831.chatgpt.site/try?lang=en). It has its own link, separate from the [four story walkthroughs](https://evervibe.zesty-mesa-1831.chatgpt.site/stories?lang=en). Each page keeps its own session progress.
 
-For a quick start, select **Try two different tastes**. It looks up *Knives Out* and *Amélie*, selects New York City and fills two sample Vibes. Review each person's **Share my Vibe** and **Receive EVE suggestions** settings, then press **Start together**. You arrive directly in **Make plans**, with Qloo's shared cultural themes and an editable first question. The same app navigation as the stories gives you **Chat**, **Make plans** and **Our memories**.
+The app opens directly in **Private chat with EVE**, alongside the interactive black box. You can chat or open the box without entering interests first. Drag the box to rotate it, or use its open button. Opening it introduces a fictional companion; cultural planning comes later, using the interests you choose.
 
-1. **Choose something you love.** Search for a film, artist or book, then add an actual search result to **Your Vibe**. You can select up to three interests.
-2. **Open a demo connection.** The black box introduces Anya, a fictional sample partner, with her photograph and interests. Her sample film is added only if the catalog returns the matching title and year. You can open **Edit the sample Vibe yourself** to change her interests or add a note about what she would enjoy today.
-3. **Start together.** Choose a city, or click **Use my location** and grant browser permission for nearby ideas. Enable sharing and EVE suggestions for both roles, then press **Start together**. Each role can share independently; joint EVE planning needs both. If a step is missing, the page explains what to do and focuses that control. Setup folds away; **Settings** reopens it.
+1. **Talk to EVE or open the box.** Begin with a thought in private chat, or open the black box to meet Anya, a fictional sample partner, with her photograph and interests. Her sample film is added only if the catalog returns the matching title and year. **My black box** returns to the box or profile.
+2. **Say hello.** From Anya's profile, select **Say hello** to open direct chat. Write your own message, then use **Perspective** to switch to Anya and enter her reply. This is one browser showing both roles; Anya is not another person online.
+3. **Share your tastes when ready.** Open **Settings** to search for a film, artist or book and add an actual catalog result to **Your Vibe**, up to three interests. You can also edit Anya's sample Vibe and either person's note about today. Choose a city, or click **Use my location** and grant browser permission for nearby ideas. Each person independently controls **Share my Vibe** and **Receive EVE suggestions**. Once both Vibes are filled and all four participation controls are enabled, select **Start together**. Settings closes and **Make plans** opens with Qloo's common cultural themes and an editable first question. Missing steps are explained beside the relevant settings.
 4. **Try all three spaces.** Under **Chat**, use **Private chat with EVE** for live personal advice, or **Chat with Anya** to write directly. Use the **Perspective** buttons to switch to Anya and enter her reply. Each person has a separate EVE thread; direct chat has only the messages you enter, with no automated partner replies. **Make plans** contains the shared Qloo-assisted conversation. For example, one person can say “I'd love to discover some art” and the other “One stop sounds good. I'd like time to talk afterwards.” You write both sides; Anya is not another person online.
 5. **Choose a shared idea.** Ask EVE to help plan. Open **Why these suggestions?** to see the cultural starting points. Select a candidate and confirm from both roles. You can ask a follow-up about that choice without clearing either confirmation. Ask explicitly for new or different recommendations when you want to replace it.
 6. **Keep a moment.** After both confirm a plan, **After our time together** opens a blank journal with the place as its title; it does not claim the outing happened. In **Our memories**, add a real-life moment yourself or let EVE prepare an editable excerpt from the shared conversation. Choose the date and words, propose the memory, and switch roles to confirm it. Private chat is never used as a memory source.
 7. **Grow the tree.** Each distinct, jointly saved memory earns one water and one nourishment. Use the two icons to care for the interactive 3D tree. It grows after one, three and six saved moments; the mature tree uses the same Tripo model and rose garden as the stories. These are visual demo milestones, not a relationship score.
 8. **Make a small promise.** Open **An agreement for us** in Make plans. One person proposes; the other confirms. Editing a proposal requires renewed agreement. Manual memories and agreements remain available when EVE is off.
+
+For a sample planning setup, open **Settings** and choose **Try two different tastes** while both Vibes are empty. It looks up *Knives Out* and *Amélie*, selects New York City and fills two sample Vibes. Review both people's sharing and EVE controls before selecting **Start together**; the shortcut does not enable them for you. If opening Anya's box has already filled her Vibe, use the editable Vibes instead, or reset the session to try the sample shortcut.
 
 The black box always introduces the same fictional character. Your interests influence cultural planning; they do not search for or rank real romantic partners. Qloo provides the cultural candidates, and EVE connects them to what the two people have expressed.
 
@@ -25,7 +27,7 @@ You can ask private EVE for help before sharing your own Vibe. A partner's inter
 
 ## Explore the four stories
 
-Choose **Four stories** or visit `/stories.html`. The chapter controls select a story, and the two names switch whose view you are experiencing. Only one person's view is shown at a time.
+Open the separate [four stories link](https://evervibe.zesty-mesa-1831.chatgpt.site/stories?lang=en). The chapter controls select a story, and the two names switch whose view you are experiencing. Only one person's view is shown at a time.
 
 | City | Couple | Their story |
 | --- | --- | --- |
@@ -46,7 +48,7 @@ The characters, photographs and story events are fictional. They let you experie
 
 **Make plans** is the shared conversation with EVE. Each person can express what they want from the time together. EVE uses the shared interests and current wishes to suggest cultural possibilities. Both people choose whether an idea becomes their plan.
 
-The story's **Our common ground** card shows each person's cultural starting points and Qloo's shared themes. These themes help shape the actual recommendation query; they are not a relationship score. Saved Qloo comparisons are labelled. A location request occurs only when you choose **Use my location**. Declining permission keeps manual city selection available; enabling location does not automatically discover or label your city.
+In both experiences, the common-ground card in **Make plans** shows each person's cultural starting points and Qloo's shared themes. These themes help shape the actual recommendation query; they are not a relationship score. Saved Qloo comparisons are labelled. A location request occurs only when you choose **Use my location**. Declining permission keeps manual city selection available; enabling location does not automatically discover or label your city.
 
 ## Sharing and EVE suggestions
 
@@ -67,7 +69,7 @@ After choosing a story plan, switch roles so each person can confirm it. **After
 
 In **Our memories**, each person chooses the words they want to keep. Review and confirm the shared entry from both roles. The memory tree gives those moments a place to return to. You can also add a moment yourself; the app does not infer that an event happened in real life.
 
-When both people have shared new messages and enabled the shared EVE experience, **EVE · Keep this moment?** offers **Review draft**. This draft quotes their shared words; it does not invent a memory or read private chats. You can edit it, choose a date, and save it, or select **Not now**. An unfinished personal draft is preserved. The same suggested moment earns water and nourishment only once, even when both roles review it.
+In the authored stories, after both people share new messages with the shared EVE experience enabled, **EVE · Keep this moment?** offers **Review draft**. In the interactive app, **Help keep this moment** in **Our memories** prepares an editable excerpt from the human messages in **Make plans**. These drafts quote shared words; they do not invent a memory or read private chats. You can edit the words, choose a date and propose the memory for both roles to confirm, or leave the draft aside. An unfinished personal draft is preserved. A distinct, jointly saved moment earns water and nourishment only once.
 
 ## Language and session progress
 

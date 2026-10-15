@@ -44,6 +44,29 @@
   state.sharing={you:{vibe:false,eve:true},partner:{vibe:false,eve:true}};state.checkins=new Set();state.unread={you:0,partner:0};
   Object.assign(copy.en,{memoriesTab:'Our memories',shareVibe:'Share my Vibe',receiveEve:'Receive EVE suggestions',qlooIntro:'Qloo connects what you both love. EVE turns that common ground into something to do together.',needConsent:'Both people need to share their Vibe and receive EVE suggestions to plan with EVE.',privacy:'Shared Vibes include chosen interests and today’s note. Private EVE chats stay separate. Only your language preference is saved on this device.',eveOff:'EVE suggestions are off. You can turn them on in Settings.',afterTime:'After our time together',sharedWelcome:'{name} enjoys {taste}. A little curiosity can be a lovely start — ask what they love about it.',memoryNudge:'When you’ve had that time together, tell me what stayed with you. You can keep it in Our memories.',nextSetting:'Open sharing settings'});
   Object.assign(copy.zh,{memoriesTab:'共同记忆',shareVibe:'共享我的 Vibe',receiveEve:'接收 EVE 建议',qlooIntro:'Qloo 连接你们各自喜欢的事物，EVE 把文化共鸣变成可以一起做的安排。',needConsent:'两人都开启共享 Vibe 和接收 EVE 建议后，就能和 EVE 一起安排。',privacy:'共享 Vibe 包含所选兴趣与今天的心情备注。EVE 私聊仍各自独立。设备上只保存语言偏好。',eveOff:'接收 EVE 建议已关闭，可以在设置里打开。',afterTime:'相处之后，留下一段回忆',sharedWelcome:'{name}喜欢{taste}。可以好奇地问问，最喜欢其中的什么。',memoryNudge:'等你们一起经历之后，告诉我最想记住的片刻吧，可以把它留在共同记忆里。',nextSetting:'打开共享设置'});
+  Object.assign(copy.en,{visitorVibe:'Visitor’s Vibe',demoTasteHint:'Add your tastes when you’re ready to plan together.',done:'Done',myBlackbox:'My black box',sayHello:'Say hello',addYourVibe:'Add what you love',entryWelcome:'Tell me what’s on your mind. Or open your black box — someone’s world might make you curious.',demoStartHint:'A fictional connection to explore.',privateBefore:'I’d love to meet someone who shares my curiosity.',privateEmpty:'What’s on your mind?',demoReady:'You can say hello, or share your Vibes to plan with EVE.',boxOpen:'Open my black box',boxDrag:'Drag to explore · ← → to rotate',boxAria:'Your 3D black box. Drag or use the left and right arrow keys to rotate.',boxOpening:'Opening…',boxOpened:'Opened',boxUnavailable:'3D is unavailable here. You can still open the box.',qlooIntro:'Qloo connects your tastes. EVE helps turn them into shared plans.'});
+  Object.assign(copy.zh,{visitorVibe:'体验者的 Vibe',demoTasteHint:'想一起安排时，再加入你的喜好。',done:'完成',myBlackbox:'我的黑盒',sayHello:'打个招呼',addYourVibe:'加入我的喜欢',entryWelcome:'有什么心事，慢慢和我说。也可以打开黑盒，看看谁的世界让你好奇。',demoStartHint:'一个可以认识的虚构示例人物。',privateBefore:'我想认识一个和我一样充满好奇的人。',privateEmpty:'有什么想和我聊聊的？',demoReady:'可以先打个招呼，也可以共享 Vibe，和 EVE 一起安排。',boxOpen:'打开我的黑盒',boxDrag:'拖动探索 · ← → 旋转',boxAria:'立体心意黑盒，可拖动或使用左右方向键旋转。',boxOpening:'正在打开…',boxOpened:'已打开',boxUnavailable:'当前浏览器无法显示 3D，仍可打开黑盒。',qlooIntro:'Qloo 连接你们的喜好，EVE 把共鸣变成共同安排。'});
+  state.showBox=true;
+  let boxDispose=null;
+  function renderEntry(){
+    const visible=state.view==='private'&&state.speaker==='you'&&state.showBox;
+    $('first-meeting').hidden=!visible;
+    $('entry-welcome').hidden=state.connection.opened;
+    $('show-blackbox').hidden=state.speaker!=='you';
+    $('live-blackbox').hidden=state.connection.opened;
+    if(state.connection.opened){boxDispose?.();boxDispose=null;}
+    else if(visible&&!boxDispose){
+      const keys={'box.open':'boxOpen','box.drag':'boxDrag','box.aria':'boxAria','box.opening':'boxOpening','box.opened':'boxOpened','box.unavailable':'boxUnavailable'};
+      boxDispose=window.mountEverBox($('live-blackbox'),openConnection,{t:key=>t(keys[key])});
+    }
+    boxDispose?.refreshLabels?.();
+    $('messages').classList.toggle('entry-empty',visible&&!currentMessages().length);
+  }
+  function openConnection(){
+    if(state.connection.opened)return;
+    state.connection.opened=true;state.showBox=true;translate();loadDemoInterest();
+  }
+  function closeSettings(){if($('vibe-dialog').open)$('vibe-dialog').close();}
   const controllers = {you:null,partner:null,assist:null,connection:null,compare:null,example:null};
   const serials = {you:0,partner:0,assist:0,connection:0};
   const t = key => key==='you'&&state.speaker==='partner'?(state.locale==='zh'?'体验者':'Visitor'):copy[state.locale][state.connection.opened&&['partner','partnerVibe','chatHeading'].includes(key)?key+'Demo':key] || key;
@@ -59,16 +82,19 @@
     for(const owner of ['you','partner']){const id=key+':'+owner;if(!state.sharing[owner].eve||state.checkins.has(id))continue;state.checkins.add(id);state.privateMessages[owner].push({from:'eve',text:typeof text==='function'?text(owner):text,sourceLang:state.locale,checkin:true});if(state.view!=='private'||state.speaker!==owner)state.unread[owner]++;}
     $('chat-tab').textContent=t('chatTab')+(state.unread[state.speaker]?' · '+state.unread[state.speaker]:'');
   }
-  function openSharing(){ $('vibe-setup').open=true;$('share-'+state.speaker).focus(); }
+  function openSharing(){ $('vibe-setup').open=true;if(!$('vibe-dialog').open)$('vibe-dialog').showModal();if(!state.vibes.you.entities.length)$('you-query').focus();else $('share-'+state.speaker).focus(); }
   function changeSpace(view=state.view,speaker=state.speaker){
     state.drafts[threadKey()]=$('message').value;stopAssist();state.view=view;state.speaker=speaker;state.error=null;state.status=null;
     if(view==='private')state.unread[speaker]=0;
     state.retry=view!=='direct'&&currentMessages().at(-1)?.from===speaker;
     $('speaker').value=speaker;$('message').value=state.drafts[threadKey()]||'';
+    state.showBox=view==='private'&&speaker==='you'&&!state.connection.opened&&!currentMessages().length;
     renderControls();renderMessages();renderPlan();renderBridge();
   }
   function renderSpace(){
     const plans=state.view==='plans',direct=state.view==='direct',memories=state.view==='memories',other=otherName();
+    renderEntry();
+    $('plans-tab').hidden=!state.connection.opened;$('memories-tab').hidden=!state.connection.opened;
     $('perspective-bar').hidden=!state.connection.opened;
     document.querySelectorAll('.perspective-bar [data-person]').forEach(el=>{el.textContent=t(el.dataset.person);el.setAttribute('aria-pressed',String(el.dataset.person===state.speaker));});
     $('chat-heading').textContent=state.speaker==='you'?t('yourView'):t('partnerView').replace('{name}',t('partner'));
@@ -82,7 +108,7 @@
     $('conversation-content').hidden=memories;$('try-memories').hidden=!memories;$('try-agreements').hidden=!plans;
     memoriesUI.render();agreementsUI.render();
     $('conversation-content').setAttribute('aria-labelledby',plans?'plans-tab':'chat-tab');
-    $('chat-switch').hidden=plans;$('private-tab').setAttribute('aria-selected',String(!direct));$('direct-tab').setAttribute('aria-selected',String(direct));
+    $('chat-switch').hidden=plans||!state.connection.opened;$('private-tab').setAttribute('aria-selected',String(!direct));$('direct-tab').setAttribute('aria-selected',String(direct));
     $('direct-tab').textContent=t('directTab').replace('{name}',other);$('direct-tab').hidden=!state.connection.opened;
     $('scope-note').textContent=plans?[t('you'),t('partner'),'EVE'].join(' · '):t(direct?'directScope':'privateScope');
     $('message').placeholder=t(plans?'messagePlaceholder':direct?'directPlaceholder':'privatePlaceholder').replace('{name}',other);
@@ -152,27 +178,26 @@
       const choices=await Promise.all([['Knives Out',2019],['Amélie',2001]].map(async([query,year])=>{const result=await post('/api/try/search',{query,type:'movie',locale:state.locale},controller.signal);const film=result.items?.find(i=>i.title.toLowerCase()===query.toLowerCase()&&Number(i.year)===year);if(!film)throw Error('NOT_FOUND');return film;}));
       if(controller.signal.aborted||revision!==state.revision)return;
       state.vibes.you.entities=[choices[0]];state.vibes.partner.entities=[choices[1]];clearLocation();state.city='new-york';$('city').value=state.city;state.connection.opened=true;invalidate();state.setup='quickReady';
-      for(const owner of ['you','partner'])renderChips(owner);translate();$('consent').focus();
+      for(const owner of ['you','partner'])renderChips(owner);translate();$('share-you').focus();
     }catch(error){if(!controller.signal.aborted)state.setup='unavailable';}
     finally{if(controllers.example===controller){controllers.example=null;state.exampleBusy=false;renderControls();}}
   }
   function renderConnection() {
     const connection=state.connection;
     $('demo-connection').classList.toggle('opened',connection.opened);
-    $('open-demo').hidden=connection.opened;$('open-demo').disabled=!state.vibes.you.entities.length;
+    $('open-demo').hidden=true;$('open-demo').disabled=false;
     $('demo-start-hint').hidden=connection.opened;
     $('demo-profile').hidden=!connection.opened;
     const profileReady=state.vibes.you.entities.length&&state.vibes.partner.entities.length;
-    const status=connection.busy?'demoSearching':!state.vibes.you.entities.length?'demoStartHint':profileReady?(state.started?'demoSessionReady':'demoReady'):connection.status==='demoReady'?'demoEdit':connection.status;
+    const status=connection.busy?'demoSearching':!state.vibes.you.entities.length?'demoTasteHint':profileReady?(state.started?'demoSessionReady':'demoReady'):connection.status==='demoReady'?'demoEdit':connection.status;
     $('demo-status').textContent=status?t(status):'';
     $('demo-interest').textContent=state.vibes.partner.entities.map(item=>item.title+(item.year?' ('+item.year+')':'')).join(' · ');
     $('retry-demo').hidden=!connection.opened||connection.busy||profileReady||!(connection.error||connection.status==='demoMissing');
-    $('retry-demo').disabled=!state.vibes.you.entities.length;
-    $('demo-stories').href='/stories.html?lang='+state.locale;
+    $('retry-demo').disabled=false;
     document.querySelector('.demo-photo img').alt=t('demoPhotoAlt');
   }
   async function loadDemoInterest() {
-    if(!state.vibes.you.entities.length||state.connection.busy)return;
+    if(state.connection.busy)return;
     if(state.vibes.partner.entities.length){state.connection.status='demoReady';state.connection.error=false;renderConnection();return;}
     stopConnectionSearch();const token=serials.connection,controller=new AbortController();controllers.connection=controller;
     state.connection.busy=true;state.connection.error=false;state.connection.status=null;renderConnection();
@@ -191,7 +216,6 @@
   }
   function invalidate(reason='changed') {
     stopCompare();
-    $('vibe-setup').open=true;
     const wasStarted=state.everStarted;
     stopAssist();state.revision++;state.started=false;state.selected=null;state.confirmations={you:false,partner:false};state.retry=false;state.error=null;state.status=null;state.setup=reason==='changed'&&!wasStarted?null:reason;
     if(state.plan)state.plan.expired=true;
@@ -252,6 +276,8 @@
     renderConnection();
     document.body.classList.toggle('session-started',state.everStarted);
     $('sharing-summary').textContent=t(state.consent?'sharingOn':'sharingOff');
+    document.querySelector('[data-owner=you] h2').textContent=t(state.speaker==='partner'?'visitorVibe':'yourVibe');
+    document.querySelectorAll('.sharing-people legend').forEach((el,i)=>el.textContent=t(i?'partner':'you'));
     renderSpace();
     $('use-location').disabled=state.locationBusy;$('use-location').textContent=t(state.locationBusy?'locating':'useLocation');
     $('clear-location').hidden=!state.location&&!state.locationBusy;
@@ -280,7 +306,7 @@
     const messages=currentMessages();
     if(!messages.length){
       container.append(node('p','empty-message',t(state.view==='private'?'privateEmpty':state.view==='direct'?'directEmpty':state.started?'emptyReady':'empty')));
-      if(state.view==='private')container.append(button(t('privateIdea'),()=>{$('message').value=t('privateIdea');$('message').focus();},'private-prompt'));
+      if(state.view==='private'&&(!state.showBox||state.connection.opened))container.append(button(t(state.connection.opened?'privateIdea':'privateBefore'),()=>{$('message').value=t(state.connection.opened?'privateIdea':'privateBefore');$('message').focus();},'private-prompt'));
       if(state.view==='plans'&&!state.started)container.append(button(t('nextSetting'),openSharing,'private-prompt'));
       return;
     }
@@ -370,7 +396,11 @@
   }
   $('your-vibe').append(makeVibeCard('you'));$('partner-vibe').append(makeVibeCard('partner'));
   $('quick-example').addEventListener('click',quickExample);
-  $('open-demo').addEventListener('click',()=>{if(!state.vibes.you.entities.length)return;state.connection.opened=true;translate();loadDemoInterest();});
+  $('open-demo').addEventListener('click',openConnection);
+  $('say-hello').addEventListener('click',()=>{changeSpace('direct');$('message').focus();});
+  $('profile-vibe').addEventListener('click',openSharing);
+  $('close-settings').addEventListener('click',closeSettings);
+  $('show-blackbox').addEventListener('click',()=>{changeSpace('private','you');state.showBox=!state.showBox||!state.connection.opened;renderEntry();renderMessages();});
   $('retry-demo').addEventListener('click',()=>loadDemoInterest());
   $('language').addEventListener('change',event=>{state.locale=event.target.value;try{localStorage.setItem(LANGUAGE_KEY,state.locale);}catch{}const url=new URL(location.href);if(url.searchParams.has('lang')){url.searchParams.set('lang',state.locale);history.replaceState(null,'',url);}translate();});
   $('city').addEventListener('change',event=>{clearLocation();state.city=event.target.value;invalidate();});
@@ -387,9 +417,9 @@
   $('direct-tab').addEventListener('click',()=>changeSpace('direct'));
   $('start').addEventListener('click',()=>{
     if(!state.vibes.you.entities.length){state.setup='needYou';renderControls();$('you-query').focus();return;}
-    if(!state.vibes.partner.entities.length){state.setup='needPartner';renderControls();$('open-demo').focus();return;}
+    if(!state.vibes.partner.entities.length){state.setup='needPartner';$('manual-vibes').open=true;renderControls();$('partner-query').focus();return;}
     if(!state.consent){state.setup='needConsent';renderControls();$('share-'+state.speaker).focus();return;}
-    state.connection.opened=true;state.started=true;state.everStarted=true;state.setup='ready';state.status=null;$('vibe-setup').open=false;translate();compareVibes();
+    state.connection.opened=true;state.started=true;state.everStarted=true;state.setup='ready';state.status=null;$('vibe-setup').open=false;closeSettings();translate();compareVibes();
     if(!state.messages.length&&!state.drafts['plans:'+state.speaker])state.drafts['plans:'+state.speaker]=state.location?t('firstIdeaNearby'):t('firstIdea').replace('{city}',t(state.city));
     addCheckin('welcome',owner=>{const other=owner==='you'?'partner':'you';return t('sharedWelcome').replace('{name}',t(other)).replace('{taste}',state.vibes[other].entities.map(item=>item.title).join(', '));});
     changeSpace('plans');
@@ -399,7 +429,7 @@
   $('chat-form').addEventListener('submit',event=>{
     event.preventDefault();const text=$('message').value.trim();if(!text||state.busy||!canWrite())return;
     if(text.length>1500){state.error='validation';state.retry=false;renderControls();return;}
-    currentMessages().push({from:state.speaker,text,revision:state.revision});$('message').value='';state.drafts[threadKey()]='';state.error=null;state.status=null;state.retry=false;renderMessages();
+    state.showBox=false;renderEntry();currentMessages().push({from:state.speaker,text,revision:state.revision});$('message').value='';state.drafts[threadKey()]='';state.error=null;state.status=null;state.retry=false;renderMessages();
     if(state.view==='private')privateAssist();else if(state.view==='plans')assist();else renderControls();
   });
   $('message').addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();$('chat-form').requestSubmit();}});
@@ -408,10 +438,10 @@
   $('reset').addEventListener('click',()=>{
     controllers.example?.abort();controllers.example=null;state.exampleBusy=false;stopCompare();
     stopAssist();stopConnectionSearch();state.connection={opened:false,busy:false,status:null,error:false};$('manual-vibes').open=false;for(const owner of ['you','partner']){abortSearch(owner);state.vibes[owner]={entities:[],note:''};state.search[owner]={query:'',type:'movie',items:[],busy:false,error:null,searched:false};$(owner+'-query').value='';$(owner+'-type').value='movie';$(owner+'-note').value='';}
-    clearLocation();$('vibe-setup').open=true;state.city='tokyo';state.consent=false;state.started=false;state.everStarted=false;state.revision++;state.speaker='you';state.messages=[];state.plan=null;state.selected=null;state.confirmations={you:false,partner:false};state.error=null;state.status=null;state.setup=null;state.retry=false;
+    clearLocation();closeSettings();boxDispose?.();boxDispose=null;state.showBox=true;$('vibe-setup').open=false;state.city='tokyo';state.consent=false;state.started=false;state.everStarted=false;state.revision++;state.speaker='you';state.messages=[];state.plan=null;state.selected=null;state.confirmations={you:false,partner:false};state.error=null;state.status=null;state.setup=null;state.retry=false;
     state.view='private';state.privateMessages={you:[],partner:[]};state.directMessages=[];state.drafts={};
     state.sharing={you:{vibe:false,eve:true},partner:{vibe:false,eve:true}};state.checkins.clear();state.unread={you:0,partner:0};memoriesUI.reset();agreementsUI.reset();
-    $('city').value='tokyo';$('consent').checked=false;$('speaker').value='you';$('message').value='';translate();$('you-query').focus();
+    $('city').value='tokyo';$('consent').checked=false;$('speaker').value='you';$('message').value='';translate();$('message').focus();
   });
   const context=()=>({locale:state.locale,actor:state.speaker,connected:state.connection.opened,eveEnabled:state.consent,names:{you:t('you'),partner:t('partner')},messages:state.consent?state.messages:[],plan:state.confirmations.you&&state.confirmations.partner?state.plan?.items.find(item=>item.id===state.selected)||null:null});
   const memoriesUI=window.EverTryMemories.create({host:$('try-memories'),getContext:context});

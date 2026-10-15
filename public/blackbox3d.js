@@ -1,7 +1,8 @@
 /* Local procedural 3D demonstration asset. No external models or API calls. */
 (function () {
   'use strict';
-  window.mountEverBox = function (container, onOpen) {
+  window.mountEverBox = function (container, onOpen, options = {}) {
+    const tr = (key, fallback) => options.t?.(key) || window.EverLocale?.t(key) || fallback;
     const wrapper = document.createElement('div');
     wrapper.style.cssText = 'position:relative;width:100%;border-radius:24px;overflow:hidden;background:#354657';
     const stage=Math.max(0,Math.min(3,(Number(document.body.dataset.chapter)||1)-1));
@@ -9,7 +10,8 @@
     const canvas = document.createElement('canvas');
     canvas.style.cssText = 'position:relative;width:100%;height:300px;display:block;cursor:grab;touch-action:none';
     canvas.setAttribute('role', 'img');
-    canvas.setAttribute('aria-label', (window.EverLocale?.t('box.aria')||'立体心意黑盒，可拖动旋转；使用下方按钮打开'));
+    canvas.tabIndex=0;
+    canvas.setAttribute('aria-label', tr('box.aria','立体心意黑盒，可拖动旋转；使用下方按钮打开'));
     wrapper.appendChild(canvas);
     const glow = document.createElement('div');
     glow.setAttribute('aria-hidden','true');
@@ -18,19 +20,19 @@
     const footer = document.createElement('div');
     footer.style.cssText = 'position:relative;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:0 18px 16px';
     const caption = document.createElement('span');
-    caption.textContent = (window.EverLocale?.t('box.drag')||'拖动旋转，打开一个相遇的可能');
+    caption.textContent = tr('box.drag','拖动旋转，打开一个相遇的可能');
     caption.style.cssText = 'font:11px system-ui;color:'+(scenery?.night?'#fff4df':'#364e45')+';text-shadow:0 1px 3px #343d4530';
     const button = document.createElement('button');
-    button.type = 'button'; button.textContent = (window.EverLocale?.t('box.open')||'打开黑盒');
+    button.type = 'button'; button.textContent = tr('box.open','打开黑盒');
     button.style.cssText = 'border:1px solid #decba4;border-radius:24px;padding:10px 19px;background:#efe4cd;color:#283b42;font:14px system-ui;cursor:pointer;box-shadow:0 3px 14px #202c3630';
     footer.append(caption, button); wrapper.appendChild(footer); container.appendChild(wrapper);
     let disposed = false, opened = false, frame = 0, started = 0, angle = -.55, pointer = null, lastX = 0, finishTimer = 0, completed = false;
-    let gl, program, buffer, observer;
+    let gl, program, buffer, observer, unavailable=false;
     const shaders = [];
     function finish() {
       if (disposed || completed) return;
       completed = true; clearTimeout(finishTimer);
-      button.textContent = (window.EverLocale?.t('box.opened')||'黑盒已打开');
+      button.textContent = tr('box.opened','黑盒已打开');
       if (typeof onOpen === 'function') onOpen();
     }
     button.addEventListener('click', function () {
@@ -38,7 +40,7 @@
       opened = true; button.disabled = true;
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       if (!reducedMotion) glow.animate([{opacity:0,transform:'translateY(22px) scale(.5)'},{opacity:.9,transform:'translateY(-8px) scale(1.1)',offset:.6},{opacity:0,transform:'translateY(-20px) scale(1.2)'}],{duration:1150,fill:'forwards'});
-      button.textContent = (window.EverLocale?.t('box.opening')||'正在打开…');
+      button.textContent = tr('box.opening','正在打开…');
       if (!program) { finishTimer=setTimeout(finish,reducedMotion?0:1150); return; }
       started = performance.now(); schedule();
       // Keep the action usable if the browser throttles or loses the animation frame.
@@ -133,16 +135,23 @@
       function requestRender(){if(!frame&&!disposed)frame=requestAnimationFrame(render);}
       schedule = requestRender;
       observer=new ResizeObserver(schedule);observer.observe(canvas);
+      canvas.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();angle+=e.key==='ArrowLeft'?-.2:.2;schedule();});
       canvas.addEventListener('pointerdown',e=>{pointer=e.pointerId;lastX=e.clientX;canvas.setPointerCapture(pointer);canvas.style.cursor='grabbing';});
       canvas.addEventListener('pointermove',e=>{if(pointer!==e.pointerId)return;angle+=(e.clientX-lastX)*.012;lastX=e.clientX;schedule();});
       const release=()=>{pointer=null;canvas.style.cursor='grab';};
       canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',release);
       schedule();
     } catch (error) {
+      unavailable=true;
       if (program && gl) gl.deleteProgram(program);
-      program=null; caption.textContent=(window.EverLocale?.t('box.unavailable')||'当前浏览器无法显示 3D，可继续打开黑盒');
+      program=null; caption.textContent=tr('box.unavailable','当前浏览器无法显示 3D，可继续打开黑盒');
     }
     function schedule() {}
+    dispose.refreshLabels=()=>{
+      canvas.setAttribute('aria-label',tr('box.aria','3D black box'));
+      caption.textContent=unavailable?tr('box.unavailable','3D is unavailable. You can still open the box.'):tr('box.drag','Drag to rotate');
+      button.textContent=tr(completed?'box.opened':opened?'box.opening':'box.open',completed?'Opened':opened?'Opening…':'Open my black box');
+    };
     return dispose;
   };
 })();

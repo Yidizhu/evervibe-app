@@ -6,12 +6,14 @@ EverVibe turns cultural interests into things two people can do, discuss and rem
 
 ## Explore
 
-- **[Try the live demo](https://evervibe.zesty-mesa-1831.chatgpt.site/try?lang=en)** — start with two sample tastes or bring your own.
-- **[Follow four stories](https://evervibe.zesty-mesa-1831.chatgpt.site/stories?lang=en)** — explore the fictional relationships and the story features.
+- **[Try the interactive app](https://evervibe.zesty-mesa-1831.chatgpt.site/try?lang=en)** — open directly in private EVE chat with a rotatable black box.
+- **[Explore four stories](https://evervibe.zesty-mesa-1831.chatgpt.site/stories?lang=en)** — follow four authored fictional relationships through the same app features.
 
-- **Four stories** — `/stories.html?lang=en`: four fictional couples in Tokyo, New York, London and Wellington. Each story explores a different moment: discovery, connection, repair or lasting companionship.
-- **Try your own Vibe** — `/try.html?lang=en`: choose **Try two different tastes** for a quick start, or search for films, artists or books yourself. Switch between private EVE advice, direct chat and shared planning in the same navigation as the stories. Share the two Vibes to see Qloo's common cultural themes and make a plan. You can play both sides; no other person needs to be online.
+- **Interactive app** — `/try?lang=en`: talk to EVE or drag and open the black box without filling in a profile first. The box introduces Anya, a fictional demo companion. **Say hello** opens direct chat; **My black box** returns to her profile. **Settings** contains both Vibes, location and each person's independent sharing and EVE controls. Once both Vibes and participation settings are ready, **Start together** opens **Make plans** with Qloo's common cultural themes. You enter both people's messages; no other person needs to be online.
+- **Four stories** — `/stories?lang=en`: four fictional couples in Tokyo, New York, London and Wellington. Each story explores a different moment: discovery, connection, repair or lasting companionship. This is a separate entry point with its own session progress.
 - [User guide](USER_GUIDE.md) — getting started, the four stories and the three conversation spaces.
+
+For a sample planning setup, open **Settings** and select **Try two different tastes** while both Vibes are empty. Otherwise, search for films, artists or books and choose actual catalog results. Opening the black box is a fictional introduction; Qloo influences the common cultural themes and plans, not the identity of the sample companion.
 
 The first visit starts in English. English and Simplified Chinese interface and authored story text are available from Settings; the selected language is remembered. Language changes preserve the active session. Typed and already generated messages stay in their original language; new EVE requests use the selected language. Official titles and addresses remain recognizable. Other system languages are not yet translated.
 

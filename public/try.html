@@ -10,15 +10,15 @@
   <link rel="stylesheet" href="/try-agreements.css">
   <script type="importmap">{"imports":{"three":"/vendor/three/build/three.module.js","three/addons/":"/vendor/three/examples/jsm/"}}</script>
   <script src="/tree3d.js" defer></script>
+  <script src="/blackbox3d.js" defer></script>
   <script src="/try-memories.js" defer></script>
   <script src="/try-agreements.js" defer></script>
   <script src="/try-app.js" defer></script>
 </head>
 <body>
   <header class="masthead">
-    <a class="brand" href="/stories.html" target="_blank" rel="noopener">EverVibe<span class="brand-dot" aria-hidden="true"></span></a>
+    <a class="brand" href="/try?lang=en">EverVibe<span class="brand-dot" aria-hidden="true"></span></a>
     <div class="header-actions">
-      <a href="/stories.html" target="_blank" rel="noopener" data-i18n="stories">Four stories ↗</a>
       <details id="system-settings" class="system-settings">
         <summary data-i18n="settings">Settings</summary>
         <div class="settings-panel"><label for="language" data-i18n="language">Language</label><select id="language"><option value="en">English</option><option value="zh">中文</option></select></div>
@@ -26,33 +26,14 @@
     </div>
   </header>
   <main>
-    <section class="intro" aria-labelledby="page-title">
-      <p class="eyebrow" data-i18n="eyebrow">A little of you. A little of us.</p>
-      <h1 id="page-title" data-i18n="title">Bring a few things you love.<br>Find something to share.</h1>
-      <p class="intro-note" data-i18n="sampleNote">The sample partner is a role you can try, not a person online.</p>
-      <p class="intro-note qloo-intro" data-i18n="qlooIntro">Qloo connects what you both love. EVE turns that common ground into something to do together.</p>
-      <button id="quick-example" class="example-pair" type="button" data-i18n="quickExample">Try two different tastes</button>
-    </section>
+    <dialog id="vibe-dialog" aria-labelledby="setup-title">
+      <div class="dialog-heading"><h2 id="setup-title" data-i18n="setupTitle">Vibes &amp; location</h2><button id="close-settings" type="button" data-i18n="done">Done</button></div>
     <details id="vibe-setup" aria-label="Vibe setup" open>
       <summary id="setup-summary"><span data-i18n="setupTitle">Vibes &amp; location</span><span id="sharing-summary" class="fine"></span></summary>
-      <ol class="demo-flow" aria-label="Experience steps"><li data-i18n="flowYou">Your Vibe</li><li data-i18n="flowPartner">A demo connection</li><li data-i18n="flowTogether">Plan with EVE</li></ol>
+      <button id="quick-example" class="example-pair" type="button" data-i18n="quickExample">Try two different tastes</button>
       <div id="vibe-cards" class="vibe-cards">
         <div id="your-vibe"></div>
         <div class="connection-column">
-          <article id="demo-connection" class="demo-connection">
-            <div class="demo-box-scene" aria-hidden="true"><div class="demo-box"><span class="box-face box-front"></span><span class="box-face box-side"></span><span class="box-face box-lid"></span></div><span class="box-glow"></span></div>
-            <button id="open-demo" class="primary" data-i18n="openDemo">Open a demo connection</button>
-            <p id="demo-start-hint" class="fine" data-i18n="demoStartHint">Choose one of your interests to open the box.</p>
-            <div id="demo-profile" hidden>
-              <div class="demo-profile-head"><img src="/assets/people/anya-v2.png" alt="Anya" width="78" height="78"><div><p class="eyebrow" data-i18n="fictionalPartner">Fictional demo partner</p><h2>Anya</h2></div></div>
-              <p class="demo-bio" data-i18n="demoBio">Film photography, quiet films, and the light between buildings.</p>
-              <p id="demo-interest" class="demo-interest"></p>
-              <details class="demo-photo"><summary data-i18n="demoPhoto">A photo from Anya’s profile</summary><img src="/assets/people/anya-shadow-v1.png" alt="Architectural shadows in Anya’s fictional photo collection" width="1536" height="1024"></details>
-              <p id="demo-status" class="fine" role="status"></p>
-              <button id="retry-demo" class="text-button" data-i18n="retryDemo" hidden>Search the sample interest again</button>
-              <a id="demo-stories" href="/stories.html" target="_blank" rel="noopener" data-i18n="exploreStories">Explore the four stories ↗</a>
-            </div>
-          </article>
           <details id="manual-vibes" class="manual-vibes"><summary data-i18n="manualVibes">Edit the sample Vibe yourself</summary><div id="partner-vibe"></div></details>
         </div>
       </div>
@@ -68,13 +49,31 @@
       <p class="fine" data-i18n="privacy">Starting compares your selected interests with Qloo. Your notes and chat reach EVE when you send a message. Only your language preference is saved on this device.</p>
       <p id="setup-status" class="setup-status" role="status" aria-live="polite" tabindex="-1"></p>
     </details>
+    </dialog>
     <div class="perspective-bar" id="perspective-bar" hidden><span data-i18n="perspective">Perspective</span><button type="button" data-person="you">You</button><button type="button" data-person="partner">Anya (demo)</button></div>
     <section class="conversation" aria-labelledby="chat-heading">
-      <div class="conversation-head"><span class="eve-orb" id="view-avatar" aria-hidden="true">Y</span><div><h2 id="chat-heading">Your view</h2><p id="shared-participants" class="fine"></p></div></div>
+      <div class="conversation-head"><span class="eve-orb" id="view-avatar" aria-hidden="true">Y</span><div><h2 id="chat-heading">Your view</h2><p id="shared-participants" class="fine"></p></div><button id="show-blackbox" class="text-button" type="button" data-i18n="myBlackbox">My black box</button></div>
       <div class="shared-space-nav" role="tablist" aria-label="Your space"><button id="chat-tab" type="button" role="tab" aria-controls="conversation-content" data-i18n="chatTab">Chat</button><button id="plans-tab" type="button" role="tab" aria-controls="conversation-content" data-i18n="makePlans">Make plans</button><button id="memories-tab" type="button" role="tab" aria-controls="try-memories" data-i18n="memoriesTab">Our memories</button><button id="edit-vibes" class="text-button" type="button" data-i18n="settings">Settings</button></div>
       <div id="conversation-content" role="tabpanel" aria-labelledby="chat-tab">
       <div class="chat-switch" id="chat-switch" role="tablist" aria-label="Chat with"><button id="private-tab" type="button" role="tab" aria-controls="messages" data-i18n="privateTab">Private chat with EVE</button><button id="direct-tab" type="button" role="tab" aria-controls="messages">Chat with Anya</button></div>
       <p id="scope-note" class="scope-note"></p>
+      <section id="first-meeting" aria-label="Your black box">
+        <div id="entry-welcome" class="message eve"><p class="sender">EVE</p><p class="bubble" data-i18n="entryWelcome">Tell me what’s on your mind. Or open your black box — someone’s world might make you curious.</p></div>
+          <article id="demo-connection" class="demo-connection">
+            <div id="live-blackbox"></div>
+            <button id="open-demo" type="button" hidden></button>
+            <p id="demo-start-hint" class="fine" data-i18n="demoStartHint">A fictional connection to explore.</p>
+            <div id="demo-profile" hidden>
+              <div class="demo-profile-head"><img src="/assets/people/anya-v2.png" alt="Anya" width="78" height="78"><div><p class="eyebrow" data-i18n="fictionalPartner">Fictional demo partner</p><h2>Anya</h2></div></div>
+              <p class="demo-bio" data-i18n="demoBio">Film photography, quiet films, and the light between buildings.</p>
+              <p id="demo-interest" class="demo-interest"></p>
+              <details class="demo-photo"><summary data-i18n="demoPhoto">A photo from Anya’s profile</summary><img src="/assets/people/anya-shadow-v1.png" alt="Architectural shadows in Anya’s fictional photo collection" width="1536" height="1024"></details>
+              <p id="demo-status" class="fine" role="status"></p>
+              <button id="retry-demo" class="text-button" data-i18n="retryDemo" hidden>Search the sample interest again</button>
+              <div class="profile-actions"><button id="say-hello" type="button" class="primary" data-i18n="sayHello">Say hello</button><button id="profile-vibe" type="button" class="text-button" data-i18n="addYourVibe">Add what you love</button></div>
+            </div>
+          </article>
+      </section>
       <div id="taste-bridge" aria-live="polite" hidden></div>
       <div id="messages" class="messages" role="log" aria-live="polite" aria-relevant="additions"></div>
       <div id="recommendations"></div>
@@ -89,7 +88,7 @@
       </div>
       <section id="try-memories" role="tabpanel" aria-labelledby="memories-tab" hidden></section>
     </section>
-    <footer><span data-i18n="sessionOnly">Your session, here and now.</span><button id="reset" class="text-button" data-i18n="reset">Reset this session</button></footer>
+    <footer><span data-i18n="qlooIntro">Qloo connects your tastes. EVE helps turn them into shared plans.</span><button id="reset" class="text-button" data-i18n="reset">Reset this session</button></footer>
   </main>
 </body>
 </html>
