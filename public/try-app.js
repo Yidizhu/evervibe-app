@@ -480,7 +480,7 @@
     $('city').value='';$('consent').checked=false;$('speaker').value='you';$('message').value='';translate();$('message').focus();
   });
   const context=()=>({locale:state.locale,actor:state.speaker,connected:state.connection.opened,eveEnabled:state.consent,names:{you:t('you'),partner:t('partner')},messages:state.consent?state.messages:[],plan:state.confirmations.you&&state.confirmations.partner?state.plan?.items.find(item=>item.id===state.selected)||null:null});
-  const memoriesUI=window.EverTryMemories.create({host:$('try-memories'),getContext:context});
+  const memoriesUI=window.EverTryMemories.create({host:$('try-memories'),getContext:context,onReviewAs:actor=>changeSpace('memories',actor)});
   const agreementsUI=window.EverTryAgreements.create({host:$('try-agreements'),getContext:context});
   translate();
 })();

@@ -89,11 +89,11 @@
       update: 'Update this memory', form: 'A moment from real life', planned: 'How did your time together go?',
       eveForm: 'EVE draft · from your shared conversation', eveTitle: 'Something we said to each other',
       review: 'For us both to keep', confirm: 'Keep this memory', waiting: 'Waiting for {name}',
-      confirmed: 'Confirmed', edit: 'Edit', discard: 'Not this time', manual: 'From real life',
+      confirmed: 'Confirmed', edit: 'Edit', discard: 'Not this time', manual: 'Personal entry', reviewAs: 'Review as {name}',
       shared: 'From our conversation', saved: 'Memory kept. +1 water · +1 nourishment',
       pending: 'Shared for the other person to review.', removed: 'Draft set aside.',
       water: 'Water the tree', nourish: 'Nourish the tree', watered: 'A little water. A little growth.',
-      nourished: 'A little care. A new bloom.', required: 'Add a title, a memory and a date up to today.',
+      nourished: 'A little care for what we’re growing.', required: 'Add a title, a memory and a date up to today.',
       noMessages: 'Talk together first, then EVE can help keep a moment.',
       duplicate: 'This moment is already waiting for confirmation or safely kept.',
       stale: 'This draft has changed. Open Edit below to review the latest version.',
@@ -112,11 +112,11 @@
       update: '更新这段记忆', form: '现实中的一个瞬间', planned: '这次一起出门，怎么样？',
       eveForm: 'EVE 草稿 · 摘自共同聊天', eveTitle: '我们对彼此说过的话',
       review: '等我们一起确认', confirm: '一起留住', waiting: '等 {name} 确认',
-      confirmed: '已确认', edit: '修改', discard: '这次先不留', manual: '现实里的瞬间',
+      confirmed: '已确认', edit: '修改', discard: '这次先不留', manual: '亲手记录', reviewAs: '切换到 {name} 确认',
       shared: '我们的聊天', saved: '记忆已留下。水 +1 · 肥料 +1',
       pending: '已分享，等对方一起确认。', removed: '已放下这份草稿。',
       water: '给树浇水', nourish: '给树施肥', watered: '一点水，一点成长。',
-      nourished: '一点照料，一朵新花。', required: '请填写标题、记忆和不晚于今天的日期。',
+      nourished: '一点照料，陪它慢慢长大。', required: '请填写标题、记忆和不晚于今天的日期。',
       noMessages: '先一起聊一聊，EVE 就能帮你们留住片刻。',
       duplicate: '这一刻已经在等待确认，或已经留在共同记忆里了。',
       stale: '这份草稿已更新，点下方“修改”看看最新内容。',
@@ -128,7 +128,7 @@
       'model.unavailable': '树还没有准备好，请稍后再试。'
     }
   };
-  function create({ host, getContext, onChange = () => {} }) {
+  function create({ host, getContext, onChange = () => {}, onReviewAs }) {
     const store = createStore();
     const editors = { you: null, partner: null };
     const expanded = new Set();
@@ -153,9 +153,17 @@
     function notify(key, failed = false) { status = key; error = failed; }
     function changed() { onChange({ savedCount: store.data.saved.length, pendingCount: store.data.pending.length }); render(); }
     function stopTree() { renderEpoch++; treeDispose?.(); treeDispose = null; }
+    function reveal(selector, block = 'center') {
+      host.querySelector(selector)?.scrollIntoView({ block, behavior: 'auto' });
+    }
+    function revealEditor() {
+      reveal('#memory-editor', 'start');
+      host.querySelector('#memory-title')?.focus({ preventScroll: true });
+    }
     function blank(source = 'manual') { return { title: '', text: '', date: today(), source, id: null, planId: '' }; }
     function openEditor(source) {
       const ctx = context(); if (!ctx.connected) return;
+      if (editors[ctx.actor]) { revealEditor(); return; }
       let draft = blank(source);
       if (source === 'eve') {
         if (!ctx.eveEnabled) return;
@@ -164,7 +172,7 @@
         draft = { ...draft, title: t('eveTitle'), text: quoted };
       }
       editors[ctx.actor] = draft; status = ''; render();
-      host.querySelector('#memory-title')?.focus({ preventScroll: true });
+      revealEditor();
     }
     function mountTree(container) {
       const stage = store.stage(), ownEpoch = renderEpoch;
@@ -185,6 +193,7 @@
       const b = button('', () => {
         if (!store.care(kind)) return;
         animation = kind; notify(kind === 'water' ? 'watered' : 'nourished'); changed();
+        reveal('#memory-tree');
       }, 'memory-care-tool ' + kind, 'memory-' + kind);
       b.setAttribute('aria-label', `${t(kind)} · ${store.data[kind]}`); b.title = t(kind);
       b.disabled = store.data[kind] < 1;
@@ -215,7 +224,7 @@
       form.append(actions);
       form.onsubmit = event => {
         event.preventDefault();
-        try { store.propose(ctx.actor, draft, draft.id); editors[ctx.actor] = null; notify('pending'); changed(); }
+        try { store.propose(ctx.actor, draft, draft.id); editors[ctx.actor] = null; notify('pending'); changed(); reveal('#memory-pending', 'start'); }
         catch (problem) {
           const key = ['duplicate', 'stale'].includes(problem.message) ? problem.message : 'required';
           if (key === 'stale') editors[ctx.actor] = null;
@@ -241,8 +250,16 @@
             for (const actor of actors) if (editors[actor]?.id === memory.id) editors[actor] = null;
           }
           notify(saved ? 'saved' : 'pending'); changed();
+          if (saved) reveal('#memory-tree');
         }, 'primary', 'memory-confirm-' + memory.id));
-        else card.append(el('p', 'memory-waiting', t('waiting', { name: ctx.names[ctx.actor === 'you' ? 'partner' : 'you'] })));
+        else {
+          const other = ctx.actor === 'you' ? 'partner' : 'you';
+          card.append(el('p', 'memory-waiting', t('waiting', { name: ctx.names[other] })));
+          if (typeof onReviewAs === 'function') actions.append(button(t('reviewAs', { name: ctx.names[other] }), () => {
+            onReviewAs(other);
+            reveal('#memory-pending', 'start');
+          }, 'primary'));
+        }
         actions.append(button(t('edit'), () => { editors[ctx.actor] = { ...memory }; status = ''; render(); }, 'secondary'));
         actions.append(button(t('discard'), () => { store.discard(memory.id); for (const actor of actors) if (editors[actor]?.id === memory.id) editors[actor] = null; notify('removed'); changed(); }, 'memory-link'));
         card.append(actions); list.append(card);
@@ -286,8 +303,9 @@
       render,
       beginFromPlan(item) {
         const ctx = context(); if (!ctx.connected) return;
+        if (editors[ctx.actor]) { revealEditor(); return; }
         editors[ctx.actor] = { ...blank('plan'), title: String(item?.title || item?.name || '').slice(0, 100), planId: String(item?.id || '') };
-        status = ''; render();
+        status = ''; render(); revealEditor();
       },
       reset() { store.reset(); editors.you = editors.partner = null; expanded.clear(); animation = null; status = ''; error = false; render(); },
       dispose() { destroyed = true; stopTree(); host.replaceChildren(); }
