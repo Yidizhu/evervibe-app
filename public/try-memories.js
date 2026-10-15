@@ -75,10 +75,10 @@
       stage: () => data.saved.length >= 6 ? 3 : data.saved.length >= 3 ? 2 : data.saved.length ? 1 : 0 };
   }
   // A reviewed EVE draft is an extraction, not a claim that an outing happened.
-  function sharedDraft(messages, names) {
+  function sharedDraft(messages, names, simulatedLabel = 'simulated reply') {
     return (Array.isArray(messages) ? messages : [])
       .filter(m => actors.has(m.from) && typeof m.text === 'string' && m.text.trim())
-      .slice(-4).map(m => `${names[m.from]}: “${m.text.trim().slice(0, 270)}”`).join('\n\n');
+      .slice(-4).map(m => `${names[m.from]}${m.simulated ? ` (${simulatedLabel})` : ''}: “${m.text.trim().slice(0, 270)}”`).join('\n\n');
   }
   const labels = {
     en: {
@@ -159,7 +159,7 @@
       let draft = blank(source);
       if (source === 'eve') {
         if (!ctx.eveEnabled) return;
-        const quoted = sharedDraft(ctx.messages, ctx.names);
+        const quoted = sharedDraft(ctx.messages, ctx.names, ctx.locale === 'zh' ? '模拟回应' : 'simulated reply');
         if (!quoted) { notify('noMessages'); render(); return; }
         draft = { ...draft, title: t('eveTitle'), text: quoted };
       }

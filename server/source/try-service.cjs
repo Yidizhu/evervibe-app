@@ -3,10 +3,10 @@
 // Server-owned catalog entries keep the open demo grounded in real Qloo entities.
 // Personal notes and chat text are used by Gemini only; Qloo receives IDs and bounded filters.
 const {AppError}=require('./eve-service.cjs');
-const {CITIES,CATEGORY_VALUES,PLANNING_VALUES,normalizeLocation,normalizePlanning,requestParameters,distanceMetres}=require('./qloo-support.cjs');
+const {CITIES,CATEGORY_VALUES,PLANNING_VALUES,validCity,normalizeLocation,normalizePlanning,requestParameters,distanceMetres}=require('./qloo-support.cjs');
 const {readSharedTags,bridgeSignals}=require('./taste-bridge.cjs');
 const QLOO_ORIGIN='https://hackathon.api.qloo.com';
-const SEARCH_TYPES=['movie','artist','book'],CITY_IDS=['tokyo','new-york','london','wellington'];
+const SEARCH_TYPES=['movie','artist','book'];
 const fail=(status,code,message)=>{throw new AppError(status,code,message);};
 const clean=(value,max)=>typeof value==='string'?value.replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max):'';
 const validId=value=>typeof value==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
@@ -30,16 +30,29 @@ function catalogItem(entity,type){
  if((type==='movie'||type==='book')&&Number.isInteger(year)&&year>=1000&&year<=2100)item.year=year;
  return item;
 }
-function candidateItem(entity,category,planning,params){
+function resolvedLocality(body,params){
+ if(!params['filter.location.query'])return;
+ // The live Insights response identifies a free-text search under localities.filter.
+ // Keep compatibility with the earlier singular shape; never invent a city centre.
+ const raw=body.query?.localities?.filter??body.query?.locality?.filter??body.query?.locality?.signal;
+ const matches=Array.isArray(raw)?raw:raw?[raw]:undefined;
+ if(matches&&!matches.length)fail(422,'LOCATION_NOT_FOUND','Qloo could not match this city or area. Please try a more specific location.');
+ const match=matches?.find(item=>normalizeLocation(item?.location));
+ if(!match)return;
+ const countryCode=match.properties?.geocode?.country_code||match.country_code;
+ return {...normalizeLocation(match.location),...(/^[A-Z]{2}$/.test(countryCode||'')?{countryCode}:{})};
+}
+function candidateItem(entity,category,planning,params,locality){
  const type=category==='movie'?'movie':category==='travel'?'destination':'place';
  const item=catalogItem(entity,type);if(!item||entity.properties?.is_closed===true)return;
  if(type!=='movie'){
-  const point=entity.location,city=planning.location?undefined:CITIES[planning.city],origin=planning.location||city,geo=entity.properties?.geocode;
+  const point=entity.location,city=!planning.location&&Object.hasOwn(CITIES,planning.city)?CITIES[planning.city]:undefined,origin=planning.location||city||locality,geo=entity.properties?.geocode;
   if(!point||typeof point.lat!=='number'||typeof point.lon!=='number'||!Number.isFinite(point.lat)||!Number.isFinite(point.lon)||Math.abs(point.lat)>90||Math.abs(point.lon)>180)return;
-  const distance=distanceMetres(origin,point),radius=Number(params['filter.location.radius']);
-  if(Number.isFinite(radius)&&distance>radius+1000)return;
-  if(city&&geo?.country_code&&geo.country_code!==city.countryCode)return;
-  if(type==='destination'&&(distance<15000||(city&&planning.duration==='long'&&geo?.country_code!==city.countryCode)))return;
+  const distance=origin?distanceMetres(origin,point):undefined,radius=Number(params['filter.location.radius']);
+  if(origin&&Number.isFinite(radius)&&distance>radius+1000)return;
+  const countryCode=city?.countryCode||(!planning.location&&locality?.countryCode);
+  if(countryCode&&geo?.country_code&&geo.country_code!==countryCode)return;
+  if(type==='destination'&&((origin&&distance<15000)||(city&&planning.duration==='long'&&geo?.country_code!==city.countryCode)))return;
   const tags=Array.isArray(entity.tags)?entity.tags:[];
   if(type==='place'){
    const allowed=new Set((params['filter.tags']||'').split(','));
@@ -142,6 +155,7 @@ function createTryService(options={}){
     if(response.status===429){cooldownUntil=now()+60000;fail(429,'QLOO_RATE_LIMIT','Qloo is busy. Please try again later.');}
     if([401,403].includes(response.status))fail(503,'QLOO_AUTH_FAILED','Qloo could not authorize this server.');
     if(response.status===404&&endpoint==='/search')return {results:[]};
+    if(response.status===400&&endpoint==='/v2/insights'&&params['filter.location.query'])fail(422,'LOCATION_NOT_FOUND','Qloo could not match this city or area. Please try a more specific location.');
     if(!response.ok)fail(502,'QLOO_UNAVAILABLE','Qloo could not complete this request.');
     let body;try{body=await response.json();}catch{fail(502,'QLOO_RESPONSE_INVALID','Qloo returned an unreadable response.');}
     aborted(combined);if(!object(body)||body.success===false)fail(502,'QLOO_RESPONSE_INVALID','Qloo returned an unexpected response.');return body;
@@ -185,10 +199,14 @@ function createTryService(options={}){
  async function contextFor(input,signal){
   if(!object(input))fail(400,'BAD_REQUEST','Invalid experience request.');
   if(input.consent!==true)fail(403,'CONSENT_REQUIRED','Enable the shared experience before inviting EVE.');
-  if(!['en','zh'].includes(input.locale)||!CITY_IDS.includes(input.city)||!object(input.vibes)||!Array.isArray(input.messages)||!input.messages.length||input.messages.length>20)fail(400,'BAD_REQUEST','Invalid experience request.');
+  if(!['en','zh'].includes(input.locale)||!object(input.vibes)||!Array.isArray(input.messages)||!input.messages.length||input.messages.length>20)fail(400,'BAD_REQUEST','Invalid experience request.');
   if(Object.hasOwn(input,'offeredPlans')&&(!Array.isArray(input.offeredPlans)||input.offeredPlans.length>3||input.offeredPlans.some(token=>typeof token!=='string'||!token||token.length>16000)||new Set(input.offeredPlans).size!==input.offeredPlans.length))fail(422,'TRY_PLAN_INVALID','Please ask for fresh ideas.');
   const location=Object.hasOwn(input,'location')?normalizeLocation(input.location):undefined;
   if(Object.hasOwn(input,'location')&&!location)fail(400,'BAD_REQUEST','Choose a city or a valid device location.');
+  if(!location&&(!validCity(input.city)||input.city.trim().toLowerCase()==='nearby'))fail(400,'BAD_REQUEST','Enter a city or enable your device location.');
+  // The visitor's point is the sole location scope when enabled. A previous
+  // story-city selection must not reach Gemini, country filters or plan tokens.
+  const city=location?'nearby':input.city.trim();
   const vibes={},seeds=[];
   for(const owner of ['you','partner']){
    const profile=input.vibes[owner];
@@ -202,7 +220,7 @@ function createTryService(options={}){
   if(input.messages.some(message=>!object(message)||!['you','partner','eve'].includes(message.from)||typeof message.text!=='string'||!message.text.trim()||message.text.length>1500))fail(400,'BAD_REQUEST','Invalid conversation messages.');
   const messages=input.messages.map(message=>({from:message.from,text:clean(message.text,1500)}));
   if(messages.at(-1).from==='eve')fail(400,'BAD_REQUEST','A person must speak first.');
-  const context={locale:input.locale,city:input.city,cityLabel:CITIES[input.city].label,vibes,messages,seeds};
+  const context={locale:input.locale,city,cityLabel:Object.hasOwn(CITIES,city)?CITIES[city].label:city,vibes,messages,seeds};
   if(location){context.location=location;context.locationScope=await locationScope(location);context.cityLabel='Near the selected device location';}
   const selectedPlan=await readSelection(input.selection,context,signal);if(selectedPlan)context.selectedPlan=selectedPlan;
   if(input.offeredPlans?.length){
@@ -311,7 +329,8 @@ function createTryService(options={}){
   const ids=[...new Set(context.seeds.map(seed=>seed.id))],params=bridgeSignals(requestParameters(category,planning),bridge);
   const body=await request('/v2/insights',{...params,'signal.interests.entities':ids.join(','),'filter.exclude.entities':ids.join(','),take:'6',page:route.mode==='explore'?'2':'1'},signal);
   if(!Array.isArray(body.results?.entities))fail(502,'QLOO_RESPONSE_INVALID','Qloo returned an unexpected recommendation response.');
-  const candidates=[...new Map(body.results.entities.slice(0,100).map(entity=>candidateItem(entity,category,planning,params)).filter(item=>item&&!ids.includes(item.id)).map(item=>[item.id,item])).values()].slice(0,6);
+  const locality=resolvedLocality(body,params);
+  const candidates=[...new Map(body.results.entities.slice(0,100).map(entity=>candidateItem(entity,category,planning,params,locality)).filter(item=>item&&!ids.includes(item.id)).map(item=>[item.id,item])).values()].slice(0,6);
   if(!candidates.length)fail(422,'NO_RECOMMENDATIONS','No matching ideas were found. Try a different activity or interest.');
   const selectionProperties={text:{type:'string'},selections:{type:'array',maxItems:3,items:{type:'object',properties:{id:{type:'string'},reason:{type:'string'},activity:{type:'string'}},required:['id','reason','activity'],additionalProperties:false}}};
   let curated;

@@ -83,7 +83,7 @@ test('consent, unknown IDs and expired IDs reject before any AI lookup',async()=
 
 test('invalid cities, bounds and messages never call a provider',async()=>{
  const f=fixture();await f.seed();
- const examples=[{city:'auckland'},{city:'https://evil.invalid'},{locale:'xx'},{messages:[{from:'eve',text:'Ask me.'}]},{messages:[{from:'you',text:'x'.repeat(1501)}]},{messages:Array.from({length:21},()=>({from:'you',text:'x'}))}];
+ const examples=[{city:''},{city:'https://evil.invalid'},{locale:'xx'},{messages:[{from:'eve',text:'Ask me.'}]},{messages:[{from:'you',text:'x'.repeat(1501)}]},{messages:Array.from({length:21},()=>({from:'you',text:'x'}))}];
  for(const change of examples)await assert.rejects(f.service.assist({...request(),...change}),{code:'BAD_REQUEST'});
  for(const profile of [{entities:[],note:''},{entities:[ids.film],note:'x'.repeat(161)},{entities:[ids.film,ids.film],note:''}]){const bad=request();bad.vibes.you=profile;await assert.rejects(f.service.assist(bad),{code:'BAD_REQUEST'});}
  for(const change of [{type:'person'},{query:''},{query:'x'.repeat(101)},{query:'a\nb'}])await assert.rejects(f.service.search({query:'valid',locale:'en',type:'movie',...change}),{code:'BAD_REQUEST'});

@@ -37,8 +37,14 @@
           <details id="manual-vibes" class="manual-vibes"><summary data-i18n="manualVibes">Edit the sample Vibe yourself</summary><div id="partner-vibe"></div></details>
         </div>
       </div>
+      <label class="demo-reply-setting"><input id="demo-replies" type="checkbox" checked><span data-i18n="demoReplies">Anya replies automatically (demo)</span></label>
       <div class="session-options">
-        <div class="location-field"><div class="city-field"><label for="city" data-i18n="city">Our city</label><select id="city"><option value="tokyo">Tokyo</option><option value="new-york">New York City</option><option value="london">London</option><option value="wellington">Wellington</option></select></div><div class="location-actions"><button id="use-location" type="button" class="location-button" data-i18n="useLocation">Use my location</button><button id="clear-location" type="button" class="text-button" data-i18n="clearLocation" hidden>Use selected city</button></div><p id="location-status" class="fine" role="status" aria-live="polite"></p></div>
+        <div class="location-field">
+          <p id="location-current" class="location-current" role="status"></p>
+          <div class="location-actions"><button id="use-location" type="button" class="location-button" data-i18n="useLocation">Use my location</button><button id="clear-location" type="button" class="text-button" data-i18n="clearLocation" hidden>Choose another city</button></div>
+          <details id="manual-location"><summary data-i18n="chooseCity">Choose a city instead</summary><div class="city-field"><label for="city" class="visually-hidden" data-i18n="city">City or area</label><input id="city" type="text" maxlength="100" autocomplete="off" placeholder="City, country"><button id="apply-city" type="button" data-i18n="useCity">Use this city</button></div></details>
+          <p id="location-status" class="fine" role="status" aria-live="polite"></p>
+        </div>
         <input id="consent" type="checkbox" hidden aria-hidden="true">
         <div class="sharing-people" id="sharing-people">
           <fieldset><legend data-i18n="you">You</legend><label><input id="share-you" type="checkbox"><span data-i18n="shareVibe">Share my Vibe</span></label><label><input id="eve-you" type="checkbox" checked><span data-i18n="receiveEve">Receive EVE suggestions</span></label></fieldset>
@@ -57,6 +63,7 @@
       <div id="conversation-content" role="tabpanel" aria-labelledby="chat-tab">
       <div class="chat-switch" id="chat-switch" role="tablist" aria-label="Chat with"><button id="private-tab" type="button" role="tab" aria-controls="messages" data-i18n="privateTab">Private chat with EVE</button><button id="direct-tab" type="button" role="tab" aria-controls="messages">Chat with Anya</button></div>
       <p id="scope-note" class="scope-note"></p>
+      <p id="demo-reply-note" class="demo-reply-note" hidden></p>
       <section id="first-meeting" aria-label="Your black box">
         <div id="entry-welcome" class="message eve"><p class="sender">EVE</p><p class="bubble" data-i18n="entryWelcome">Tell me what’s on your mind. Or open your black box — someone’s world might make you curious.</p></div>
           <article id="demo-connection" class="demo-connection">

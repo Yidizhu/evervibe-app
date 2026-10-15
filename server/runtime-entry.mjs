@@ -3,6 +3,7 @@ import chat from './source/gemini-chat.cjs';
 import planning from './source/eve-planner.cjs';
 import proactive from './source/eve-proactive.cjs';
 import trial from './source/try-service.cjs';
+import companionModule from './source/try-companion.cjs';
 import api from './source/api-handler.cjs';
 
 // All credentials arrive at request runtime through the host's bindings.
@@ -14,7 +15,7 @@ export function createEverVibeRuntime(options = {}) {
   const checkIns = proactive.createProactive({ gemini });
   const tryService = trial.createTryService({ env, fetch, gemini, now, catalogStore });
   return api.createApiHandler({
-    qloo, gemini, planner, proactive: checkIns, tryService,
+    qloo, gemini, planner, proactive: checkIns, tryService, companion: companionModule.createCompanionService({gemini}),
     validateChat: chat.buildContext, allowedOrigins, now,
   });
 }

@@ -87,7 +87,7 @@ test('tree stages derive from saved memories, not pending drafts or care clicks'
   assert.equal(store.stage(), 3);
   assert.equal(store.data.water, 6);
 });
-test('EVE memory draft quotes only human shared messages and does not add events', () => {
+test('EVE memory draft quotes participant messages and retains simulated attribution without adding events', () => {
   const text = sharedDraft([
     { from: 'you', text: 'Let’s go to the gallery tomorrow.' },
     { from: 'eve', text: 'You visited the gallery and loved it.' },
@@ -96,6 +96,8 @@ test('EVE memory draft quotes only human shared messages and does not add events
   ], { you: 'You', partner: 'Anya' });
   assert.equal(text, 'You: “Let’s go to the gallery tomorrow.”\n\nAnya: “I like that idea.”');
   assert.equal(sharedDraft([], {}), '');
+  assert.equal(sharedDraft([{from:'partner',text:'A quiet gallery sounds good.',simulated:true}], {partner:'Anya'}), 'Anya (simulated reply): “A quiet gallery sounds good.”');
+  assert.equal(sharedDraft([{from:'partner',text:'去看看光影吧。',simulated:true}], {partner:'Anya'}, '模拟回应'), 'Anya (模拟回应): “去看看光影吧。”');
 });
 test('a remembered date must be real and cannot be in the future', () => {
   assert.equal(validDate('2026-02-30'), false);
