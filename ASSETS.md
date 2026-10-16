@@ -22,3 +22,5 @@ is included in `public/vendor/three/LICENSE` and `THIRD_PARTY_NOTICES.md`.
 No music is bundled into the application. Qloo catalog data and Gemini's service
 are external services, not open-source components of this repository. See
 `THIRD_PARTY_NOTICES.md` for sources and terms.
+
+The eight discovery portraits in `public/assets/discovery/` were generated with OpenAI image generation for fictional adult characters on 16 October 2026. They are not photographs of actual users. The provenance and redistribution boundaries above also apply to these images.

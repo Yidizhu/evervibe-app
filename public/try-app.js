@@ -37,6 +37,7 @@
     try{const saved=localStorage.getItem(LANGUAGE_KEY);if(['en','zh'].includes(saved))return saved;}catch{}
     return 'en';
   }
+  let selectedPerson=null;
   const state = {locale:initialLocale(),city:'',consent:false,started:false,everStarted:false,revision:0,speaker:'you',messages:[],plan:null,selected:null,confirmations:{you:false,partner:false},busy:false,error:null,status:null,setup:null,retry:false,connection:{opened:false,busy:false,status:null,error:false},
     vibes:{you:{entities:[],note:''},partner:{entities:[],note:''}},search:{you:{query:'',type:'movie',items:[],busy:false,error:null,searched:false},partner:{query:'',type:'movie',items:[],busy:false,error:null,searched:false}}};
   state.bridge=null;state.bridgeBusy=false;state.exampleBusy=false;state.location=null;state.locationBusy=false;state.locationStatus=null;state.locationEpoch=0;
@@ -49,7 +50,7 @@
   state.autoPartner=true;state.busyKind=null;state.retryKind=null;
   Object.assign(copy.en,{roleNote:'Switch perspectives to review either side.',demoReplies:'Anya replies automatically (demo)',simulated:'simulated reply',demoAutoNote:'Anya is a fictional character. Her replies are simulated.',demoManualNote:'Manual demo · switch perspectives to write both sides.',companionBusy:'Anya is typing…',companionUnavailable:'Anya couldn’t reply. Try again, or switch perspectives to write her response.',demoGreeting:'Hey, I’m Anya. I usually have a camera with me. What’s something you’ve been enjoying lately?',reviewOther:'Review as {name}',city:'City or area',chooseCity:'Choose a city instead',cityPlaceholder:'City, country',useCity:'Use this city',clearLocation:'Choose another city',locationActive:'Current location · on',locationNone:'Choose where to explore',cityActive:'Search area: {city}',needLocation:'Use your location or enter a city to find nearby ideas.',invalidCity:'Enter a city and country, such as Hamilton, New Zealand.',locationNotFound:'That city or area could not be matched. Add a country or try another name.',quickReady:'Two sample tastes are ready. Choose your location and review sharing to begin.',locationReady:'Nearby ideas use your approximate location.',locationDenied:'Location permission was not granted. Enter a city instead.',locationUnavailable:'Your location could not be found. Enter a city instead.',locationTimeout:'Location took too long. Try again or enter a city.'});
   Object.assign(copy.zh,{roleNote:'切换视角，查看双方的体验。',demoReplies:'Anya 自动回复（示例）',simulated:'模拟回应',demoAutoNote:'Anya 是虚构人物，回应由模拟角色生成。',demoManualNote:'手动演示 · 切换视角，输入双方的话。',companionBusy:'Anya 正在输入…',companionUnavailable:'Anya 暂时没能回复。可以重试，或切换视角输入她的回应。',demoGreeting:'嗨，我是 Anya。我出门总爱带着相机。你最近有什么特别喜欢的东西吗？',reviewOther:'切换到{name}确认',city:'城市或区域',chooseCity:'也可以输入城市',cityPlaceholder:'城市、国家',useCity:'使用这个城市',clearLocation:'换个城市',locationActive:'当前位置 · 已开启',locationNone:'选一个想探索的地方',cityActive:'推荐区域：{city}',needLocation:'开启定位或输入城市，就能寻找附近的安排。',invalidCity:'请输入城市和国家，例如 Hamilton, New Zealand。',locationNotFound:'没能识别这个城市或区域，补充国家或换个名称试试。',quickReady:'两种示例口味准备好了。选择地点，再确认共享即可开始。',locationReady:'附近推荐将使用你的大致位置。',locationDenied:'未允许定位，可以直接输入城市。',locationUnavailable:'暂时无法获取位置，可以输入城市。',locationTimeout:'定位超时，可以重试或输入城市。'});
-  state.showBox=true;
+  state.showBox=false;
   let boxDispose=null;
   function renderEntry(){
     const visible=state.view==='private'&&state.speaker==='you'&&state.showBox;
@@ -66,13 +67,12 @@
     $('messages').classList.toggle('entry-empty',visible&&!currentMessages().length);
   }
   function openConnection(){
-    if(state.connection.opened)return;
-    state.connection.opened=true;state.showBox=true;translate();loadDemoInterest();
+    launchDiscovery();
   }
   function closeSettings(){if($('vibe-dialog').open)$('vibe-dialog').close();}
   const controllers = {you:null,partner:null,assist:null,connection:null,compare:null,example:null};
   const serials = {you:0,partner:0,assist:0,connection:0};
-  const t = key => key==='you'&&state.speaker==='partner'?(state.locale==='zh'?'体验者':'Visitor'):copy[state.locale][state.connection.opened&&['partner','partnerVibe','chatHeading'].includes(key)?key+'Demo':key] || key;
+  const t = key => personText(key) ?? (key==='you'&&state.speaker==='partner'?(state.locale==='zh'?'体验者':'Visitor'):copy[state.locale][state.connection.opened&&['partner','partnerVibe','chatHeading'].includes(key)?key+'Demo':key] || key);
   function node(tag, className, text) { const el=document.createElement(tag); if(className)el.className=className; if(text!==undefined)el.textContent=text; return el; }
   function button(text, action, className='') {const el=node('button',className,text);el.type='button';el.addEventListener('click',action);return el;}
   function label(key, htmlFor, cls='field-label') {const el=node('label',cls);el.dataset.i18n=key;el.htmlFor=htmlFor;return el;}
@@ -92,19 +92,20 @@
     state.retryKind=view==='direct'?'companion':view==='private'?'private':state.autoPartner&&currentMessages().at(-1)?.from==='you'?'companion':'plans';
     state.retry=view==='direct'?state.autoPartner&&speaker==='you'&&currentMessages().at(-1)?.from==='you':currentMessages().at(-1)?.from===speaker;
     $('speaker').value=speaker;$('message').value=state.drafts[threadKey()]||'';
-    state.showBox=view==='private'&&speaker==='you'&&!state.connection.opened&&!currentMessages().length;
+    state.showBox=view==='private'&&speaker==='you'&&state.connection.opened&&state.showBox;
     renderControls();renderMessages();renderPlan();renderBridge();
   }
   function renderSpace(){
     const plans=state.view==='plans',direct=state.view==='direct',memories=state.view==='memories',other=otherName();
     renderEntry();
+    for(const id of ['profile-photo-action','profile-discover-action'])if($(id))$(id).hidden=state.view!=='private'||state.speaker!=='you';
     $('demo-reply-note').hidden=!state.connection.opened||(!plans&&!direct);$('demo-reply-note').textContent=t(state.autoPartner?'demoAutoNote':'demoManualNote');
     $('plans-tab').hidden=!state.connection.opened;$('memories-tab').hidden=!state.connection.opened;
     $('perspective-bar').hidden=!state.connection.opened;
     document.querySelectorAll('.perspective-bar [data-person]').forEach(el=>{el.textContent=t(el.dataset.person);el.setAttribute('aria-pressed',String(el.dataset.person===state.speaker));});
     $('chat-heading').textContent=state.speaker==='you'?t('yourView'):t('partnerView').replace('{name}',t('partner'));
     const avatar=$('view-avatar');avatar.replaceChildren();
-    if(state.speaker==='partner'&&state.connection.opened){const photo=node('img');photo.src='/assets/people/anya-v2.png';photo.alt='';avatar.append(photo);}else avatar.textContent=state.locale==='zh'?'我':'Y';
+    if(state.speaker==='partner'&&state.connection.opened){const photo=node('img');photo.src=selectedPerson?.photo||'/assets/people/anya-v2.png';photo.alt='';avatar.append(photo);}else avatar.textContent=state.locale==='zh'?'我':'Y';
     $('shared-participants').textContent=state.connection.opened?t('withPartner').replace('{name}',other):t('privateScope');
     $('chat-tab').classList.toggle('active',!plans&&!memories);$('chat-tab').setAttribute('aria-selected',String(!plans&&!memories));
     $('chat-tab').textContent=t('chatTab')+(state.unread[state.speaker]?' · '+state.unread[state.speaker]:'');
@@ -228,10 +229,10 @@
     stopConnectionSearch();const token=serials.connection,controller=new AbortController();controllers.connection=controller;
     state.connection.busy=true;state.connection.error=false;state.connection.status=null;renderConnection();
     try {
-      const data=await post('/api/try/search',{query:'Lost in Translation',type:'movie',locale:state.locale},controller.signal);
+      const data=await post('/api/try/search',{query:selectedPerson?.seeds[0].title||'Lost in Translation',type:'movie',locale:state.locale},controller.signal);
       if(token!==serials.connection)return;
       const items=Array.isArray(data.items)?data.items.filter(item=>item&&typeof item.id==='string'&&typeof item.title==='string').slice(0,6):[];
-      const film=items.find(item=>item.type==='movie'&&item.title.trim().toLowerCase()==='lost in translation'&&Number(item.year)===2003);
+      const film=items.find(item=>item.type==='movie'&&item.title.normalize('NFKD').toLowerCase()===(selectedPerson?.seeds[0].title||'Lost in Translation').normalize('NFKD').toLowerCase());
       if(!state.vibes.partner.entities.length){
         if(film){state.vibes.partner.entities.push({...film});if(!state.vibes.partner.note){state.vibes.partner.note=t('demoNote');$('partner-note').value=state.vibes.partner.note;}invalidate();renderChips('partner');state.connection.status='demoReady';}
         else {Object.assign(state.search.partner,{query:'Lost in Translation',type:'movie',items,searched:true,error:null});$('partner-query').value='Lost in Translation';$('partner-type').value='movie';state.connection.status=items.length?'demoChoose':'demoMissing';if(items.length)$('manual-vibes').open=true;}
@@ -408,7 +409,7 @@
     let replied=false;
     const messages=thread.filter(m=>view==='direct'||m.revision===revision).slice(-20).map(({from,text})=>({from,text}));
     try{
-      const data=await post('/api/try/companion',{locale:state.locale,scope:view,messages,profile:{interests:state.vibes.partner.entities.map(e=>e.title),note:state.vibes.partner.note}},controller.signal);
+      const data=await post('/api/try/companion',{locale:state.locale,scope:view,messages,...(selectedPerson?{characterId:selectedPerson.id}:{}),profile:{interests:state.vibes.partner.entities.map(e=>e.title),note:state.vibes.partner.note}},controller.signal);
       if(token!==serials.assist||revision!==state.revision||!state.autoPartner||state.view!==view)return;
       if(data.simulated!==true||typeof data.text!=='string'||!data.text.trim())throw Error('INTERNAL_ERROR');
       thread.push({from:'partner',text:data.text,revision,sourceLang:data.sourceLang,simulated:true});replied=true;renderMessages();
@@ -448,7 +449,7 @@
     for(const owner of ['you','partner']){$(owner+'-query').placeholder=t('searchPlaceholder');$(owner+'-note').placeholder=t('notePlaceholder');$(owner+'-type').setAttribute('aria-label',t(owner==='you'?'yourVibe':'partnerVibe')+' · '+t('likes'));renderSearch(owner);renderChips(owner);}
     Array.from($('speaker').options).forEach(option=>option.textContent=t(option.value));
     $('message').placeholder=t('messagePlaceholder');$('vibe-setup').setAttribute('aria-label',state.locale==='zh'?'Vibe 设置':'Vibe setup');
-    renderMessages();renderPlan();renderControls();renderBridge();
+    renderMessages();renderPlan();renderControls();renderBridge();refreshDiscovery();
   }
   $('your-vibe').append(makeVibeCard('you'));$('partner-vibe').append(makeVibeCard('partner'));
   $('quick-example').addEventListener('click',quickExample);
@@ -456,7 +457,7 @@
   $('say-hello').addEventListener('click',enterDirect);
   $('profile-vibe').addEventListener('click',openSharing);
   $('close-settings').addEventListener('click',closeSettings);
-  $('show-blackbox').addEventListener('click',()=>{changeSpace('private','you');state.showBox=!state.showBox||!state.connection.opened;renderEntry();renderMessages();});
+  $('show-blackbox').addEventListener('click',launchDiscovery);
   $('retry-demo').addEventListener('click',()=>loadDemoInterest());
   $('language').addEventListener('change',event=>{state.locale=event.target.value;try{localStorage.setItem(LANGUAGE_KEY,state.locale);}catch{}const url=new URL(location.href);if(url.searchParams.has('lang')){url.searchParams.set('lang',state.locale);history.replaceState(null,'',url);}translate();});
   $('apply-city').addEventListener('click',applyCity);
@@ -501,6 +502,7 @@
     renderMessages();assist();
   });
   $('reset').addEventListener('click',()=>{
+    discoveryController?.abort();selectedPerson=null;relationshipSessions.clear();discoveryResults=[];discoveryIndex=-1;if(personal.photo)URL.revokeObjectURL(personal.photo);Object.assign(personal,{age:null,gender:'',genders:[],minAge:null,maxAge:null,localOnly:false,discoverable:false,ideal:'',intro:'',photo:null});
     controllers.example?.abort();controllers.example=null;state.exampleBusy=false;stopCompare();
     stopAssist();stopConnectionSearch();state.connection={opened:false,busy:false,status:null,error:false};$('manual-vibes').open=false;for(const owner of ['you','partner']){abortSearch(owner);state.vibes[owner]={entities:[],note:''};state.search[owner]={query:'',type:'movie',items:[],busy:false,error:null,searched:false};$(owner+'-query').value='';$(owner+'-type').value='movie';$(owner+'-note').value='';}
     clearLocation();closeSettings();boxDispose?.();boxDispose=null;state.showBox=true;$('vibe-setup').open=false;state.city='';state.autoPartner=true;state.busyKind=null;state.retryKind=null;$('manual-location').open=false;state.consent=false;state.started=false;state.everStarted=false;state.revision++;state.speaker='you';state.messages=[];state.plan=null;state.selected=null;state.confirmations={you:false,partner:false};state.error=null;state.status=null;state.setup=null;state.retry=false;
@@ -511,5 +513,123 @@
   const context=()=>({locale:state.locale,actor:state.speaker,connected:state.connection.opened,eveEnabled:state.consent,names:{you:t('you'),partner:t('partner')},messages:state.consent?state.messages:[],plan:state.confirmations.you&&state.confirmations.partner?state.plan?.items.find(item=>item.id===state.selected)||null:null});
   const memoriesUI=window.EverTryMemories.create({host:$('try-memories'),getContext:context,onReviewAs:actor=>changeSpace('memories',actor)});
   const agreementsUI=window.EverTryAgreements.create({host:$('try-agreements'),getContext:context});
+  // Private discovery is session-local. No feed or real-user registration.
+  const pool=window.EverDiscoveryPool, rules=window.EverDiscoveryRules;
+  let discoveryController=null, discoveryResults=[], discoveryIndex=-1;
+  const relationshipSessions=new Map();
+  const personal={age:null,gender:'',genders:[],minAge:null,maxAge:null,localOnly:false,discoverable:false,ideal:'',photo:null};
+  const D=(en,zh)=>state.locale==='zh'?zh:en;
+  function personText(key){
+    if(!selectedPerson)return null;
+    const p=selectedPerson;
+    const labels={partner:p.name+' '+D('(demo)','（示例）'),partnerDemo:p.name+' '+D('(demo)','（示例）'),partnerVibe:p.name+D('’s Vibe',' 的 Vibe'),partnerVibeDemo:p.name+D('’s Vibe',' 的 Vibe'),demoBio:p.interests.join(' · '),demoNote:p.interests.join(', ').slice(0,160),demoGreeting:D('Hey, I’m '+p.name+'. '+p.voice.en,p.voice.zh),demoPhoto:D('A photo '+p.name+' chose to share',p.name+' 选择分享的照片'),demoReplies:D(p.name+' replies automatically (demo)',p.name+' 自动回复（示例）'),demoAutoNote:D(p.name+' is fictional. These are simulated replies.',p.name+' 是虚构人物，回复为模拟。'),companionBusy:D(p.name+' is typing…',p.name+' 正在输入…'),demoSearching:D('Finding '+p.name+'’s cultural interests…','正在查找 '+p.name+' 的文化兴趣…')};
+    return labels[key]??null;
+  }
+  const mineDialog=node('dialog','my-vibe-dialog');mineDialog.id='my-vibe-dialog';document.body.append(mineDialog);
+  const myVibeButton=button('My Vibe',()=>{renderMyVibe();mineDialog.showModal();},'text-button');$('show-blackbox').before(myVibeButton);
+  const photoInput=node('input');photoInput.type='file';photoInput.accept='image/jpeg,image/png,image/webp';photoInput.hidden=true;document.body.append(photoInput);
+  const photoButton=button('Add a photo',()=>photoInput.click(),'text-button');photoButton.id='profile-photo-action';$('chat-form').append(photoButton);
+  const discoverButton=button('Open my black box',()=>launchDiscovery(),'text-button');discoverButton.id='profile-discover-action';$('chat-form').append(discoverButton);
+  const boxDialog=node('dialog','discovery-box-dialog');boxDialog.setAttribute('aria-label','Your black box');document.body.append(boxDialog);
+  const boxClose=button('Back to EVE',()=>{discoveryController?.abort();boxDialog.close();},'box-close');boxDialog.append(boxClose);
+  const boxStage=node('div','discovery-box-stage');boxDialog.append(boxStage);let immersiveBox=null;
+  boxDialog.addEventListener('close',()=>{discoveryController?.abort();immersiveBox?.();immersiveBox=null;});
+  const findStatus=node('p','discovery-status');findStatus.setAttribute('role','status');boxDialog.append(findStatus);
+  const skipPerson=button('Another connection',()=>chooseNext(),'text-button');$('say-hello').after(skipPerson);
+  const reason=node('p','discovery-reason');$('demo-interest').after(reason);
+  photoInput.addEventListener('change',()=>{
+    const file=photoInput.files?.[0];if(!file)return;
+    if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>8*1024*1024){photoButton.textContent=D('Choose a JPG, PNG or WebP under 8 MB','请选择 8 MB 以下的 JPG、PNG 或 WebP');return;}
+    const url=URL.createObjectURL(file),probe=new Image();probe.onload=()=>{if(personal.photo)URL.revokeObjectURL(personal.photo);personal.photo=url;renderMyVibe();if(!mineDialog.open)mineDialog.showModal();photoInput.value='';};probe.onerror=()=>{URL.revokeObjectURL(url);photoButton.textContent=D('That photo could not be opened','这张照片无法打开');};probe.src=url;
+  });
+
+  async function draftMyVibe(){
+    const messages=state.privateMessages.you.filter(m=>m.from==='you').slice(-20).map(({text})=>({from:'you',text}));
+    if(!messages.length){mineDialog.close();changeSpace('private','you');$('message').focus();return;}
+    const status=node('p','fine',D('EVE is preparing a draft for you to review…','EVE 正在整理，等你确认…'));mineDialog.append(status);
+    const controller=new AbortController();const epoch=state.revision;
+    try{const draft=await post('/api/try/profile',{locale:state.locale,messages},controller.signal);if(epoch!==state.revision)return;
+      const review=node('section','vibe-draft');review.append(node('h3','',D('Your draft — edit before using','你的草稿，使用前可以修改')));
+      const intro=node('textarea');intro.value=draft.summary;intro.maxLength=300;intro.setAttribute('aria-label',D('Draft introduction','介绍草稿'));
+      const ideal=node('textarea');ideal.value=draft.ideal;ideal.maxLength=300;ideal.setAttribute('aria-label',D('Draft partner wishes','理想型草稿'));review.append(intro,ideal);
+      const keep=new Set(draft.interests.map(x=>x.id));for(const item of draft.interests){const label=node('label','discovery-check'),check=node('input');check.type='checkbox';check.checked=true;check.onchange=()=>check.checked?keep.add(item.id):keep.delete(item.id);label.append(check,document.createTextNode(item.title));review.append(label);}
+      review.append(button(D('Use this draft','使用这份草稿'),()=>{personal.intro=intro.value;personal.ideal=ideal.value;state.vibes.you.entities=draft.interests.filter(x=>keep.has(x.id));invalidate();renderChips('you');renderMyVibe();},'primary'),button(D('Keep my current Vibe','保留当前 Vibe'),()=>review.remove()));status.replaceWith(review);
+    }catch{status.textContent=D('The draft could not be prepared. Your existing Vibe is unchanged; you can edit it yourself.','暂时无法整理草稿，原有 Vibe 没有改变，也可以自己填写。');}
+  }
+
+  function renderMyVibe(){
+    mineDialog.replaceChildren();const head=node('div','dialog-heading');head.append(node('h2','',D('My Vibe','我的 Vibe')),button(D('Done','完成'),()=>mineDialog.close()));mineDialog.append(head);
+    mineDialog.append(node('p','fine',D('Your private introduction. No public profile, likes or comments. This demo keeps it only in this tab.','这是你的私密介绍，没有公开主页、点赞或评论。本次体验仅保存在当前标签页。')));
+    if(personal.photo){const img=node('img','private-photo');img.src=personal.photo;img.alt=D('Your chosen photo','你选择的照片');mineDialog.append(img,button(D('Remove photo','删除照片'),()=>{URL.revokeObjectURL(personal.photo);personal.photo=null;renderMyVibe();}));}
+    mineDialog.append(button(D('Choose a photo','选择照片'),()=>photoInput.click()),node('p','fine',D('Photos stay on this device in the demo; EVE does not analyse this image. Add a few words if you like.','示例中的照片留在本机，EVE 不分析这张图片；你也可以写几句话。')));
+    function field(title,key,type='text'){const wrap=node('label','discovery-field',title),el=node('input');el.type=type;el.value=personal[key]??'';if(type==='number'){el.min=18;el.max=99;el.inputMode='numeric';}el.maxLength=300;el.addEventListener('input',()=>{personal[key]=type==='number'?(el.value?Number(el.value):null):el.value;});wrap.append(el);return wrap;}
+    mineDialog.append(field(D('My introduction','我的介绍'),'intro'));
+    mineDialog.append(field(D('What I’m hoping for in a partner','我期待怎样的伴侣'),'ideal'));
+    mineDialog.append(button(D('Draft my Vibe from our chat','请 EVE 根据聊天整理 Vibe'),draftMyVibe));
+    mineDialog.append(button(D('Choose films, artists or books','选择电影、音乐人或书籍'),()=>{mineDialog.close();openSharing();}));
+    const details=node('details');details.append(node('summary','',D('Who I would like to meet','我想认识怎样的人')));
+    details.append(field(D('My age (18+)','我的年龄（18 岁以上）'),'age','number'));
+    const gender=node('label','discovery-field',D('My gender (optional)','我的性别（可不填）')),select=node('select');
+    for(const [value,en,zh] of [['','Not specified','未填写'],['woman','Woman','女性'],['man','Man','男性'],['nonbinary','Nonbinary','非二元']]){const option=node('option','',D(en,zh));option.value=value;select.append(option);}select.value=personal.gender;select.onchange=()=>personal.gender=select.value;gender.append(select);details.append(gender);
+    const pref=node('fieldset');pref.append(node('legend','',D('I’m open to meeting','我愿意认识')));for(const [value,en,zh] of [['woman','Women','女性'],['man','Men','男性'],['nonbinary','Nonbinary people','非二元人士']]){const l=node('label','discovery-check'),c=node('input');c.type='checkbox';c.checked=personal.genders.includes(value);c.onchange=()=>personal.genders=c.checked?[...personal.genders,value]:personal.genders.filter(x=>x!==value);l.append(c,document.createTextNode(D(en,zh)));pref.append(l);}details.append(pref,field(D('Preferred minimum age (optional)','对方最小年龄（可不填）'),'minAge','number'),field(D('Preferred maximum age (optional)','对方最大年龄（可不填）'),'maxAge','number'));
+    const local=node('label','discovery-check'),localCheck=node('input');localCheck.type='checkbox';localCheck.checked=personal.localOnly;localCheck.onchange=()=>personal.localOnly=localCheck.checked;local.append(localCheck,document.createTextNode(D('Only show verified nearby people','仅显示已核实的附近人士')));details.append(local,node('p','fine',D('Demo characters have no verified location. This requirement will leave the demo pool empty.','示例人物没有经过核实的位置，开启此条件后不会推荐示例人物。')));mineDialog.append(details);
+    const permission=node('label','discovery-check'),check=node('input');check.type='checkbox';check.checked=personal.discoverable;check.onchange=()=>personal.discoverable=check.checked;permission.append(check,document.createTextNode(D('Use my selected tastes to explore demo connections with Qloo','用我选好的兴趣，通过 Qloo 探索示例相遇')));mineDialog.append(permission);
+    const preview=node('details');preview.append(node('summary','',D('What a connection could see','对方可以看到什么')));preview.append(node('p','',personal.intro||D('Your introduction is still yours to write.','你的介绍还等着你来写。')),node('p','',state.vibes.you.entities.map(x=>x.title).join(' · ')));if(personal.photo){const img=node('img','private-photo');img.src=personal.photo;img.alt=D('Preview of your chosen photo','你选择的照片预览');preview.append(img);}preview.append(node('p','fine',D('Only your chosen photo, introduction and selected interests. Private EVE messages are not included. No real recipient exists in this demo.','仅包含你选好的照片、介绍与兴趣，不含 EVE 私聊。本示例没有真实接收者。')));mineDialog.append(preview,button(D('Explore my black box','探索我的黑盒'),()=>{mineDialog.close();launchDiscovery();},'primary'));
+  }
+  function refreshDiscovery(){
+    myVibeButton.textContent=D('My Vibe','我的 Vibe');photoButton.textContent=D('Add a photo','添加照片');discoverButton.textContent=D('Open my black box','打开我的黑盒');boxClose.textContent=D('Back to EVE','返回 EVE');skipPerson.textContent=D('Another connection','看看另一位');
+    if(mineDialog.open)renderMyVibe();
+    if(selectedPerson){const head=document.querySelector('.demo-profile-head');head.querySelector('h2').textContent=selectedPerson.name+', '+selectedPerson.age;const img=head.querySelector('img');img.src=selectedPerson.photo;img.alt=selectedPerson.name;const pic=document.querySelector('.demo-photo img');pic.src=selectedPerson.photo;pic.alt=D('Fictional portrait of ','虚构人物照片：')+selectedPerson.name;
+      const result=discoveryResults.find(r=>r.person.id===selectedPerson.id);const themes=result?.comparison?.shared?.slice(0,3).map(x=>x.name).filter(Boolean)||[];
+      reason.textContent=(result?.eligibility.eligible?D('Your stated criteria fit in both directions. ','双方已填写的条件相互符合。'):D('An exploratory introduction — some preferences are still unknown. ','探索性介绍：部分条件尚未填写。'))+(themes.length?D('Qloo found cultural links: ','Qloo 找到的文化联系：')+themes.join(' · '):D('Different worlds to explore; no shared cultural themes have been verified.','可以探索不同的世界，目前尚未核实共同文化主题。'));
+    }
+  }
+  async function launchDiscovery(){
+    if(state.busy)return;
+    if(personal.age!==null&&(!Number.isInteger(personal.age)||personal.age<18||personal.age>99)||personal.minAge&&personal.maxAge&&personal.minAge>personal.maxAge){renderMyVibe();mineDialog.showModal();return;}
+    state.showBox=false;renderEntry();boxStage.replaceChildren();findStatus.textContent=D('A private introduction, one person at a time.','一次，只认识一个人的世界。');boxDialog.showModal();
+    immersiveBox=window.mountEverBox(boxStage,findConnections,{t:key=>({'box.open':D('Find a connection','探索相遇'),'box.drag':D('Drag to turn · arrow keys work too','拖动旋转 · 也可使用方向键'),'box.opening':D('Opening…','正在打开…'),'box.opened':D('Opened','已打开'),'box.aria':D('Your 3D black box. Drag or use arrow keys to turn.','立体黑盒，可以拖动或使用方向键旋转'),'box.unavailable':D('You can still open this box without 3D.','无法显示立体画面，仍可打开黑盒。')})[key]});
+  }
+  async function findConnections(){
+    discoveryController?.abort();const controller=new AbortController();discoveryController=controller;discoveryResults=[];discoveryIndex=-1;
+    const eligible=pool.map(person=>({person,eligibility:rules.eligibility(personal,person)})).filter(x=>!x.eligibility.rejected.length&&!personal.localOnly);
+    if(!eligible.length){findStatus.textContent=D('No demo character meets these conditions. You can review My Vibe; your preferences have not been changed.','没有示例人物符合这些条件。可以返回修改我的 Vibe，你的条件没有被自动更改。');return;}
+    const useQloo=personal.discoverable&&state.vibes.you.entities.length>0;
+    for(const entry of eligible){
+      if(controller.signal.aborted)return;
+      findStatus.textContent=useQloo?D('Comparing cultural interests with Qloo… ','正在用 Qloo 比较文化兴趣… ')+(discoveryResults.length+1)+' / '+eligible.length:D('Preparing a fictional introduction…','正在准备示例介绍…');
+      entry.entities=structuredClone(entry.person.entities||[]);
+      if(useQloo){
+        try{
+          for(const seed of entry.entities.length?[]:entry.person.seeds){const data=await post('/api/try/search',{query:seed.title,type:seed.type,locale:state.locale},controller.signal);const exact=data.items?.find(x=>x.title.normalize('NFKD').toLowerCase()===seed.title.normalize('NFKD').toLowerCase());if(exact&&!entry.entities.some(x=>x.id===exact.id))entry.entities.push(exact);}
+          if(entry.entities.length)entry.comparison=await post('/api/try/compare',{locale:state.locale,city:'Worldwide',consent:true,vibes:{you:{entities:state.vibes.you.entities.map(x=>x.id),note:''},partner:{entities:entry.entities.map(x=>x.id),note:''}}},controller.signal);
+        }catch(error){if(controller.signal.aborted)return;entry.unavailable=true;}
+      }
+      discoveryResults.push(entry);
+    }
+    if(controller.signal.aborted)return;
+    discoveryResults.sort((a,b)=>Number(b.eligibility.eligible)-Number(a.eligibility.eligible)||rules.culturalRank(b.comparison)-rules.culturalRank(a.comparison));
+    boxDialog.close();chooseNext();
+  }
+  function chooseNext(){
+    if(!discoveryResults.length){launchDiscovery();return;}
+    discoveryIndex++;
+    if(discoveryIndex>=discoveryResults.length){discoveryIndex=discoveryResults.length-1;reason.textContent=D('You’ve seen this small demo pool. Return to EVE or update My Vibe.','这一小组示例人物已经看完了，可以返回 EVE 或更新我的 Vibe。');return;}
+    switchConnection(discoveryResults[discoveryIndex]);
+  }
+  const relationshipKeys=['messages','privateMessages','directMessages','drafts','plan','selected','confirmations','sharing','unread','started','everStarted','consent','checkins','bridge'];
+  function switchConnection(entry){
+    stopAssist();stopCompare();stopConnectionSearch();abortSearch('partner');
+    if(selectedPerson){const snapshot=Object.fromEntries(relationshipKeys.map(k=>[k,structuredClone(state[k])]));snapshot.partnerVibe=structuredClone(state.vibes.partner);snapshot.memories=memoriesUI.snapshot();snapshot.agreements=agreementsUI.snapshot();relationshipSessions.set(selectedPerson.id,snapshot);}
+    selectedPerson=entry.person;state.revision++;state.speaker='you';state.view='private';state.error=null;state.retry=false;state.status=null;state.setup=null;
+    const saved=relationshipSessions.get(selectedPerson.id);
+    if(saved){for(const key of relationshipKeys)state[key]=structuredClone(saved[key]);state.vibes.partner=structuredClone(saved.partnerVibe);memoriesUI.restore(saved.memories);agreementsUI.restore(saved.agreements);state.started=false;state.confirmations={you:false,partner:false};if(state.plan)state.plan.expired=true;}
+    else {state.messages=[];state.privateMessages={you:[],partner:[]};state.directMessages=[];state.drafts={};state.plan=null;state.selected=null;state.confirmations={you:false,partner:false};state.sharing={you:{vibe:false,eve:true},partner:{vibe:false,eve:true}};state.unread={you:0,partner:0};state.started=false;state.everStarted=false;state.consent=false;state.checkins=new Set();state.bridge=null;state.vibes.partner={entities:entry.entities||[],note:selectedPerson.interests.join(', ').slice(0,160)};memoriesUI.reset();agreementsUI.reset();}
+    state.connection={opened:true,busy:false,status:'demoReady',error:false};state.showBox=true;state.search.partner={query:'',type:'movie',items:[],busy:false,error:null,searched:false};$('partner-note').value=state.vibes.partner.note;$('message').value='';translate();
+    if(!state.vibes.partner.entities.length)loadDemoInterest();
+  }
+  const intro=node('div','discovery-intro');intro.setAttribute('role','dialog');intro.setAttribute('aria-label','Welcome to EverVibe');intro.append(node('p','eyebrow','EverVibe'),node('h1','',D('Less scrolling.\nMore discovering each other.','少一点滑动，\n多一点彼此发现。')),button(D('Meet EVE','认识 EVE'),()=>intro.remove(),'primary'));document.body.append(intro);setTimeout(()=>intro.remove(),3200);
+
+  state.privateMessages.you.push({from:'eve',text:D('What have you been enjoying lately — a film, a song, a book, or a small moment? You can also share a photo, or open your black box when you feel ready.','最近有什么让你喜欢的电影、音乐、书，或者小事吗？也可以分享一张照片，或准备好后打开黑盒。'),sourceLang:state.locale});
   translate();
 })();

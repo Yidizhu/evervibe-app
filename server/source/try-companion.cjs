@@ -1,6 +1,7 @@
 'use strict';
 
 const {AppError}=require('./eve-service.cjs');
+const characters=require('./discovery-pool.cjs');
 const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 const clean=value=>value.replace(/[\u0000-\u001f\u007f]/g,' ').trim();
 const fail=(status,code,message)=>{throw new AppError(status,code,message);};
@@ -17,10 +18,11 @@ function contextFor(input){
  });
  if(messages.at(-1).from!=='you')fail(400,'BAD_REQUEST','Send your own message before asking Anya to reply.');
  const profile=input.profile;
+ if(input.characterId!==undefined&&!Object.hasOwn(characters,input.characterId))fail(400,'BAD_REQUEST','Unknown demo character.');
  if(!Array.isArray(profile.interests)||profile.interests.length>3||profile.interests.some(value=>typeof value!=='string'||value.length>160||!clean(value))||typeof profile.note!=='string'||profile.note.length>160)fail(400,'BAD_REQUEST','Choose up to three interests for the demo profile.');
  return {
   locale:input.locale,scope:input.scope,
-  character:{name:'Anya',fictional:true,adult:true},
+  character:input.characterId?{name:characters[input.characterId].name,fictional:true,adult:true,persona:characters[input.characterId]}:{name:'Anya',fictional:true,adult:true},
   profile:{interests:profile.interests.map(clean),note:clean(profile.note)},
   messages
  };
@@ -40,7 +42,7 @@ function promptFor(context){
    ? '仅用自然口语的简体中文回答，通常 1–2 句话，总共不超过 100 个字符。比如对方聊摄影时：「我总忍不住拍那些快消失的光。你拍照是想留住风景，还是当时的心情？」这是语气示例，不要机械复述。'
    : 'Reply in natural conversational English, usually 1–2 sentences and at most 70 words. For tone only, when the visitor talks about photography: "I always end up chasing the last bit of light. Are you more interested in the view, or the feeling you had there?" Do not mechanically repeat this example.',
   'Return one JSON object containing only text. The value is plain conversational text, without role labels, headings, stage directions, Markdown, or lists.'
- ].join('\n');
+ ].join('\n').replaceAll('Anya',context.character.name)+(context.character.persona?'\nUse this trusted authored character voice instead of the default photography persona: '+JSON.stringify(context.character.persona):'');
 }
 
 function createCompanionService({gemini,timeoutMs=25000}={}){

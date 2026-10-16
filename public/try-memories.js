@@ -72,6 +72,7 @@
       data.water = data.nourish = data.usedWater = data.usedNourish = 0;
     }
     return { data, propose, confirm, discard, care, reset,
+      snapshot:()=>({serial,data:structuredClone(data)}), restore:value=>{reset();if(value){serial=value.serial;Object.assign(data,structuredClone(value.data));}},
       stage: () => data.saved.length >= 6 ? 3 : data.saved.length >= 3 ? 2 : data.saved.length ? 1 : 0 };
   }
   // A reviewed EVE draft is an extraction, not a claim that an outing happened.
@@ -301,6 +302,8 @@
     }
     return {
       render,
+      snapshot:()=>({store:store.snapshot(),editors:structuredClone(editors)}),
+      restore(value){store.restore(value?.store);Object.assign(editors,value?.editors||{you:null,partner:null});expanded.clear();animation=null;status='';error=false;render();},
       beginFromPlan(item) {
         const ctx = context(); if (!ctx.connected) return;
         if (editors[ctx.actor]) { revealEditor(); return; }

@@ -97,7 +97,7 @@
       data.editing = { you: false, partner: false };
       return true;
     }
-    return { snapshot, setDraft, propose, beginEdit, cancelEdit, confirm, dismiss, reset };
+    return { snapshot, exportState:()=>({serial,data:clone(data)}), restore:value=>{reset();if(value){serial=value.serial;data=clone(value.data);}}, setDraft, propose, beginEdit, cancelEdit, confirm, dismiss, reset };
   }
 
   function create(options) {
@@ -237,6 +237,8 @@
     }
     render();
     return {
+      snapshot:()=>store.exportState(),
+      restore(value){store.restore(value);open=false;historyOpen=false;render();},
       render,
       reset() { store.reset(); open = false; historyOpen = false; render(); },
       getState: store.snapshot
