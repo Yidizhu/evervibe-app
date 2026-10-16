@@ -33,3 +33,4 @@
  footer{justify-content:flex-end;padding:8px 12px}
  .my-vibe-dialog{padding:18px}
 }
+.connections-dialog>.connection-row{margin-right:0;box-sizing:border-box}.connections-dialog{overflow-x:hidden}
