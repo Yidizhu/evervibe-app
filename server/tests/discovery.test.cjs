@@ -44,3 +44,18 @@ test('relationship memories and agreements can be restored without leaking anoth
  const first=memories();const date=new Date().toISOString().slice(0,10);first.propose('you',{title:'Our film',text:'We talked about the ending.',date});const saved=first.snapshot();first.reset();assert.equal(first.data.pending.length,0);first.restore(saved);assert.equal(first.data.pending[0].title,'Our film');saved.data.pending[0].title='changed';assert.equal(first.data.pending[0].title,'Our film');
  const a=agreements();a.setDraft('you','Text when plans change.');a.propose('you');const snapshot=a.exportState();a.reset();assert.equal(a.snapshot().pending,null);a.restore(snapshot);assert.equal(a.snapshot().pending.text,'Text when plans change.');
 });
+
+test('confirmed profile survives drafting and latest corrections are passed in order',async()=>{
+ const {createTryService}=require('../source/try-service.cjs');let seen,system;
+ const service=createTryService({gemini:{structured:async(s,c)=>{system=s;seen=c;return {summary:'I love photography.',ideal:'Someone spontaneous.',interests:[]};}}});
+ await service.summarizeProfile({locale:'en',currentProfile:{summary:'I love photography.',ideal:'Someone quiet.',interests:['Amélie']},messages:[{from:'you',text:'Now I would like someone spontaneous.'}]});
+ assert.equal(seen.previous.summary,'I love photography.');assert.equal(seen.previous.ideal,'Someone quiet.');assert.match(system,/latest corrections/);assert.equal(seen.messages[0].text,'Now I would like someone spontaneous.');
+});
+test('changed partner wishes rerank the same pool, not just skip a previous person',()=>{
+ const entry=id=>({person:{id},eligibility:{eligible:true},comparison:{source:'qloo',status:'ready',shared:[]}});
+ const a=[entry('mira'),entry('eli')],b=[entry('mira'),entry('eli')];
+ a.sort((x,y)=>rules.rank({ideal:'Someone quiet and comfortable with slow afternoons'},x,y));
+ b.sort((x,y)=>rules.rank({ideal:'Someone spontaneous who enjoys live music'},x,y));
+ assert.equal(a[0].person.id,'mira');assert.equal(b[0].person.id,'eli');
+ assert.equal(rules.preferenceRank('I do not want live music. Quiet afternoons.',{id:'eli'}).length,0);
+});

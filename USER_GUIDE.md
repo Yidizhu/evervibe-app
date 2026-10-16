@@ -104,3 +104,10 @@ After selecting both Vibes and enabling sharing, enter a city and select Start t
 The mobile conversation keeps evaluation details in this guide. Fictional people retain a small Demo label. After three initial visitor messages, an optional invitation opens the black box; Stay with EVE dismisses it. For me provides Qloo film, music-artist and book recommendations from the visitor's selected verified interests alone. With no selected interests, My Vibe opens for review first. Private chat and partner data do not enter the solo Qloo request.
 
 **People** switches between independent conversations and **Just me & EVE**. Each connection keeps separate chats, sharing choices, plans, agreements and memories. **Meet someone new** explores another fictional adult without removing earlier connections. Return to EVE to discuss what changed, then review and edit your Vibe before another introduction. Real-user profiles and bilateral discovery would require authenticated accounts and a protected backend; this prototype uses eight fictional adults.
+
+
+## Updating your Vibe
+
+Talk naturally with EVE, then choose Vibe → Draft my Vibe from our chat. Review the introduction, partner wishes and recognized favourites before applying. Confirmed profile facts and your own recent EVE messages help EVE remember you across your separate relationship spaces; other people’s private transcripts are never merged. Latest explicit corrections take precedence in the draft. Manual favourites remain optional under Add or change a favourite.
+
+Discovery filters explicit age/gender criteria in both directions, then prioritizes a small, documented set of stated lifestyle wishes (quiet time, spontaneity, live music, outdoors, art or conversation), then ranks returned Qloo shared themes. Lifestyle matching is a transparent prototype rule, not unrestricted semantic understanding or a romantic compatibility score. Unrecognized wishes remain in your profile but may not affect ranking. Updated cultural favourites change the IDs sent to Qloo for subsequent recommendations. Existing conversations remain available in People.

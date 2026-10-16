@@ -440,7 +440,7 @@
     const partnerShared=state.sharing[otherPerson()].vibe,vibes={};
     for(const owner of [actor,...(partnerShared?[otherPerson()]:[])])vibes[owner]={entities:state.vibes[owner].entities.map(item=>item.id),note:state.vibes[owner].note};
     try{
-      const data=await post('/api/try/private',{locale:chatLocale(messages),actor,partnerShared,vibes,messages},controller.signal);
+      const data=await post('/api/try/private',{locale:chatLocale(messages),actor,partnerShared,vibes,messages,...(actor==='you'?{ownProfile:{summary:personal.intro||'',ideal:personal.ideal||''},ownHistory:(personal.history||[]).slice(-12).map(m=>({from:'you',text:m.text}))}:{})},controller.signal);
       if(token!==serials.assist)return;
       if(typeof data.text!=='string'||!data.text.trim())throw Error('INTERNAL_ERROR');
       state.privateMessages[actor].push({from:'eve',text:data.text,sourceLang:data.sourceLang});renderMessages();
@@ -496,7 +496,7 @@
   $('chat-form').addEventListener('submit',event=>{
     event.preventDefault();const text=$('message').value.trim();if(!text||state.busy||!canWrite())return;
     if(text.length>1500){state.error='validation';state.retry=false;renderControls();return;}
-    state.showBox=false;renderEntry();currentMessages().push({from:state.speaker,text,revision:state.revision});$('message').value='';state.drafts[threadKey()]='';state.error=null;state.status=null;state.retry=false;renderMessages();
+    state.showBox=false;renderEntry();currentMessages().push({from:state.speaker,text,revision:state.revision});if(state.view==='private'&&state.speaker==='you'){personal.history=[...(personal.history||[]),{text,at:Date.now()}].slice(-60);}$('message').value='';state.drafts[threadKey()]='';state.error=null;state.status=null;state.retry=false;renderMessages();
     if(state.view==='private')privateAssist();else if(state.autoPartner&&state.speaker==='you')companionReply(state.view==='plans');else if(state.view==='plans')assist();else renderControls();
   });
   $('message').addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();$('chat-form').requestSubmit();}});
@@ -510,7 +510,7 @@
   $('reset').addEventListener('click',()=>{
     if(!window.confirm(D('Clear chats and memories saved on this device?','清空这台设备上保存的聊天和记忆吗？')))return;
     localReady=false;clearTimeout(localTimer);try{window.EverTryStorage.clear(localStorage);}catch{}
-    discoveryController?.abort();selectedPerson=null;relationshipSessions.clear();connectionEntries.clear();endedConnections.clear();onboardingDismissed=false;state.soloItems=[];discoveryResults=[];discoveryIndex=-1;if(personal.photo)URL.revokeObjectURL(personal.photo);Object.assign(personal,{age:null,gender:'',genders:[],minAge:null,maxAge:null,localOnly:false,discoverable:false,ideal:'',intro:'',photo:null});
+    discoveryController?.abort();selectedPerson=null;relationshipSessions.clear();connectionEntries.clear();endedConnections.clear();onboardingDismissed=false;state.soloItems=[];discoveryResults=[];discoveryIndex=-1;if(personal.photo)URL.revokeObjectURL(personal.photo);Object.assign(personal,{age:null,gender:'',genders:[],minAge:null,maxAge:null,localOnly:false,discoverable:false,ideal:'',intro:'',photo:null,history:[]});
     controllers.example?.abort();controllers.example=null;state.exampleBusy=false;stopCompare();
     stopAssist();stopConnectionSearch();state.connection={opened:false,busy:false,status:null,error:false};$('manual-vibes').open=false;for(const owner of ['you','partner']){abortSearch(owner);state.vibes[owner]={entities:[],note:''};state.search[owner]={query:'',type:'movie',items:[],busy:false,error:null,searched:false};$(owner+'-query').value='';$(owner+'-type').value='movie';$(owner+'-note').value='';}
     clearLocation();closeSettings();boxDispose?.();boxDispose=null;state.showBox=true;$('vibe-setup').open=false;state.city='';state.autoPartner=true;state.busyKind=null;state.retryKind=null;$('manual-location').open=false;state.consent=false;state.started=false;state.everStarted=false;state.revision++;state.speaker='you';state.messages=[];state.plan=null;state.selected=null;state.confirmations={you:false,partner:false};state.error=null;state.status=null;state.setup=null;state.retry=false;
@@ -528,7 +528,7 @@
   const relationshipSessions=new Map(), connectionEntries=new Map(), endedConnections=new Set();
   let onboardingDismissed=false;
   state.soloItems=[];
-  const personal={age:null,gender:'',genders:[],minAge:null,maxAge:null,localOnly:false,discoverable:false,ideal:'',photo:null};
+  const personal={age:null,gender:'',genders:[],minAge:null,maxAge:null,localOnly:false,discoverable:false,ideal:'',photo:null,history:[]};
   const D=(en,zh)=>state.locale==='zh'?zh:en;
   function personText(key){
     if(!selectedPerson)return null;
@@ -555,16 +555,16 @@
   });
 
   async function draftMyVibe(){
-    const messages=state.privateMessages.you.filter(m=>m.from==='you').slice(-20).map(({text})=>({from:'you',text}));
+    const messages=(personal.history?.length?personal.history:state.privateMessages.you.filter(m=>m.from==='you')).slice(-20).map(({text})=>({from:'you',text}));
     if(!messages.length){mineDialog.close();changeSpace('private','you');$('message').focus();return;}
     const status=node('p','fine',D('EVE is preparing a draft for you to review…','EVE 正在整理，等你确认…'));mineDialog.append(status);
     const controller=new AbortController();const epoch=state.revision;
-    try{const draft=await post('/api/try/profile',{locale:state.locale,messages},controller.signal);if(epoch!==state.revision)return;
+    try{const draft=await post('/api/try/profile',{locale:state.locale,messages,currentProfile:{summary:personal.intro||'',ideal:personal.ideal||'',interests:state.vibes.you.entities.map(x=>x.title)}},controller.signal);if(epoch!==state.revision)return;
       const review=node('section','vibe-draft');review.append(node('h3','',D('Your draft — edit before using','你的草稿，使用前可以修改')));
       const intro=node('textarea');intro.value=draft.summary;intro.maxLength=300;intro.setAttribute('aria-label',D('Draft introduction','介绍草稿'));
       const ideal=node('textarea');ideal.value=draft.ideal;ideal.maxLength=300;ideal.setAttribute('aria-label',D('Draft partner wishes','理想型草稿'));review.append(intro,ideal);
       const keep=new Set(draft.interests.map(x=>x.id));for(const item of draft.interests){const label=node('label','discovery-check'),check=node('input');check.type='checkbox';check.checked=true;check.onchange=()=>check.checked?keep.add(item.id):keep.delete(item.id);label.append(check,document.createTextNode(item.title));review.append(label);}
-      review.append(button(D('Use this draft','使用这份草稿'),()=>{personal.intro=intro.value;personal.ideal=ideal.value;state.vibes.you.entities=draft.interests.filter(x=>keep.has(x.id));invalidate();renderChips('you');renderMyVibe();},'primary'),button(D('Keep my current Vibe','保留当前 Vibe'),()=>review.remove()));status.replaceWith(review);
+      review.append(button(D('Use this draft','使用这份草稿'),()=>{personal.intro=intro.value;personal.ideal=ideal.value;discoveryResults=[];discoveryIndex=-1;state.soloItems=[];state.vibes.you.entities=draft.interests.filter(x=>keep.has(x.id));invalidate();renderChips('you');renderMyVibe();},'primary'),button(D('Keep my current Vibe','保留当前 Vibe'),()=>review.remove()));mineDialog.replaceChildren();const reviewHead=node('div','dialog-heading');reviewHead.append(node('h2','',D('Review your Vibe','确认你的 Vibe')),button(D('Done','完成'),()=>mineDialog.close()));mineDialog.append(reviewHead,review);
     }catch{status.textContent=D('The draft could not be prepared. Your existing Vibe is unchanged; you can edit it yourself.','暂时无法整理草稿，原有 Vibe 没有改变，也可以自己填写。');}
   }
 
@@ -573,7 +573,7 @@
     
     if(personal.photo){const img=node('img','private-photo');img.src=personal.photo;img.alt=D('Your chosen photo','你选择的照片');mineDialog.append(img,button(D('Remove photo','删除照片'),()=>{URL.revokeObjectURL(personal.photo);personal.photo=null;renderMyVibe();}));}
     mineDialog.append(button(D('Choose a photo','选择照片'),()=>photoInput.click()),node('p','fine',D('Photo stays on this device.','照片仅保存在本机。')));
-    function field(title,key,type='text'){const wrap=node('label','discovery-field',title),el=node('input');el.type=type;el.value=personal[key]??'';if(type==='number'){el.min=18;el.max=99;el.inputMode='numeric';}el.maxLength=300;el.addEventListener('input',()=>{personal[key]=type==='number'?(el.value?Number(el.value):null):el.value;});wrap.append(el);return wrap;}
+    function field(title,key,type='text'){const wrap=node('label','discovery-field',title),el=node('input');el.type=type;el.value=personal[key]??'';if(type==='number'){el.min=18;el.max=99;el.inputMode='numeric';}el.maxLength=300;el.addEventListener('input',()=>{personal[key]=type==='number'?(el.value?Number(el.value):null):el.value;discoveryResults=[];discoveryIndex=-1;});wrap.append(el);return wrap;}
     mineDialog.append(field(D('My introduction','我的介绍'),'intro'));
     mineDialog.append(field(D('What I’m hoping for in a partner','我期待怎样的伴侣'),'ideal'));
     mineDialog.append(button(D('Draft my Vibe from our chat','请 EVE 根据聊天整理 Vibe'),draftMyVibe));
@@ -620,8 +620,8 @@
       discoveryResults.push(entry);
     }
     if(controller.signal.aborted)return;
-    discoveryResults.sort((a,b)=>Number(b.eligibility.eligible)-Number(a.eligibility.eligible)||rules.culturalRank(b.comparison)-rules.culturalRank(a.comparison));
-    boxDialog.close();chooseNext();
+    discoveryResults.sort((a,b)=>rules.rank(personal,a,b));
+    personal.lastDiscovery={at:Date.now(),ideal:personal.ideal,interests:state.vibes.you.entities.map(x=>x.title),ranked:discoveryResults.map(e=>({id:e.person.id,preferenceMatches:rules.preferenceRank(personal.ideal,e.person),qlooThemes:rules.culturalRank(e.comparison),source:e.comparison?.source||'unavailable'}))};scheduleLocalSave();boxDialog.close();chooseNext();
   }
   function chooseNext(){
     if(!discoveryResults.length){launchDiscovery();return;}
@@ -636,7 +636,7 @@
     saveConnection();
     selectedPerson=entry.person;connectionEntries.set(entry.person.id,entry);state.revision++;state.speaker='you';state.view='private';state.error=null;state.retry=false;state.status=null;state.setup=null;
     const saved=relationshipSessions.get(selectedPerson.id);
-    if(saved){for(const key of relationshipKeys)state[key]=structuredClone(saved[key]);state.vibes.partner=structuredClone(saved.partnerVibe);memoriesUI.restore(saved.memories);agreementsUI.restore(saved.agreements);state.started=false;state.confirmations={you:false,partner:false};if(state.plan)state.plan.expired=true;}
+    if(saved){for(const key of relationshipKeys)state[key]=structuredClone(saved[key]);if(saved.ownTasteKey!==JSON.stringify(state.vibes.you.entities.map(x=>x.id).sort())){state.soloItems=[];state.bridge=null;}state.vibes.partner=structuredClone(saved.partnerVibe);memoriesUI.restore(saved.memories);agreementsUI.restore(saved.agreements);state.started=false;state.confirmations={you:false,partner:false};if(state.plan)state.plan.expired=true;}
     else {state.soloItems=[];state.messages=[];state.privateMessages={you:[],partner:[]};state.directMessages=[];state.drafts={};state.plan=null;state.selected=null;state.confirmations={you:false,partner:false};state.sharing={you:{vibe:false,eve:true},partner:{vibe:false,eve:true}};state.unread={you:0,partner:0};state.started=false;state.everStarted=false;state.consent=false;state.checkins=new Set();state.bridge=null;state.vibes.partner={entities:entry.entities||[],note:selectedPerson.interests.join(', ').slice(0,160)};memoriesUI.reset();agreementsUI.reset();}
     state.connection={opened:true,busy:false,status:'demoReady',error:false};state.showBox=true;state.search.partner={query:'',type:'movie',items:[],busy:false,error:null,searched:false};$('partner-note').value=state.vibes.partner.note;$('message').value='';translate();
     if(!state.vibes.partner.entities.length)loadDemoInterest();
@@ -648,11 +648,11 @@
     for(const [type,en,zh] of [['movie','A film','电影'],['artist','Music','音乐'],['book','A book','书籍']])soloDialog.append(button(D(en,zh),()=>soloRecommend(type),'solo-category'));
     soloDialog.showModal();},'text-button');soloButton.id='solo-action';$('chat-form').append(soloButton);
   const soloDialog=node('dialog','my-vibe-dialog');document.body.append(soloDialog);
-  function saveConnection(){state.drafts[threadKey()]=$('message').value;const snapshot=Object.fromEntries(relationshipKeys.map(k=>[k,structuredClone(state[k])]));snapshot.partnerVibe=structuredClone(state.vibes.partner);snapshot.memories=memoriesUI.snapshot();snapshot.agreements=agreementsUI.snapshot();relationshipSessions.set(selectedPerson?.id||'solo',snapshot);}
+  function saveConnection(){state.drafts[threadKey()]=$('message').value;const snapshot=Object.fromEntries(relationshipKeys.map(k=>[k,structuredClone(state[k])]));snapshot.ownTasteKey=JSON.stringify(state.vibes.you.entities.map(x=>x.id).sort());snapshot.partnerVibe=structuredClone(state.vibes.partner);snapshot.memories=memoriesUI.snapshot();snapshot.agreements=agreementsUI.snapshot();relationshipSessions.set(selectedPerson?.id||'solo',snapshot);}
   function goSolo(){
     stopAssist();stopCompare();stopConnectionSearch();abortSearch('partner');saveConnection();selectedPerson=null;state.revision++;
     const saved=relationshipSessions.get('solo');
-    if(saved){for(const key of relationshipKeys)state[key]=structuredClone(saved[key]);memoriesUI.restore(saved.memories);agreementsUI.restore(saved.agreements);}
+    if(saved){for(const key of relationshipKeys)state[key]=structuredClone(saved[key]);if(saved.ownTasteKey!==JSON.stringify(state.vibes.you.entities.map(x=>x.id).sort())){state.soloItems=[];state.bridge=null;}memoriesUI.restore(saved.memories);agreementsUI.restore(saved.agreements);}
     else {state.soloItems=[];state.messages=[];state.privateMessages={you:[],partner:[]};state.directMessages=[];state.drafts={};state.checkins=new Set();state.unread={you:0,partner:0};memoriesUI.reset();agreementsUI.reset();}
     state.vibes.partner={entities:[],note:''};state.sharing={you:{vibe:false,eve:true},partner:{vibe:false,eve:true}};state.consent=false;state.started=false;state.everStarted=false;state.plan=null;state.selected=null;state.confirmations={you:false,partner:false};state.bridge=null;
     state.connection={opened:false,busy:false,status:null,error:false};state.speaker='you';state.view='private';state.showBox=false;state.error=null;state.status=null;state.retry=false;$('message').value='';translate();
@@ -707,6 +707,8 @@
     }catch{localFailed=true;$('chat-error').textContent=D('Saved data could not be opened. It has not been deleted.','无法读取已保存的数据，原数据尚未删除。');return false;}
   }
   copy.en.reset='Reset this device';copy.zh.reset='重置本机数据';
+  copy.en.yourVibe='Things you love';copy.zh.yourVibe='你喜欢的事物';copy.en.chatCollect='Let EVE collect them from our chat';copy.zh.chatCollect='让 EVE 从聊天中整理';copy.en.manualFavourites='Add or change a favourite';copy.zh.manualFavourites='补充或修改喜欢的作品';
+  const ownCard=document.querySelector('[data-owner=you]');const ownSearch=ownCard.querySelector('form');const manual=node('details','manual-interests');manual.append(node('summary','',D('Add or change a favourite','补充或修改喜欢的作品')));ownSearch.before(manual);manual.append(ownSearch);manual.querySelector('summary').dataset.i18n='manualFavourites';const chatDraft=button(D('Let EVE collect them from our chat','让 EVE 从聊天中整理'),()=>{closeSettings();renderMyVibe();mineDialog.showModal();draftMyVibe();},'primary');chatDraft.dataset.i18n='chatCollect';manual.before(chatDraft);
   const restored=restoreLocal();
   if(!restored){
     const intro=node('div','discovery-intro');intro.setAttribute('role','dialog');intro.setAttribute('aria-label','Welcome to EverVibe');intro.append(node('p','eyebrow','EverVibe'),node('h1','',D('Less scrolling.\nMore discovering each other.','少一点滑动，\n多一点彼此发现。')),button(D('Meet EVE','认识 EVE'),()=>intro.remove(),'primary'));document.body.append(intro);setTimeout(()=>intro.remove(),3200);
