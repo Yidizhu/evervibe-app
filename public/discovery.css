@@ -1,1 +1,35 @@
 .discovery-intro{position:fixed;inset:0;z-index:200;background:radial-gradient(ellipse at 15% 80%,#d9e6db,transparent 55%),#f5f3ec;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center}.discovery-intro h1{font:400 clamp(32px,6vw,68px)/1.15 var(--serif);max-width:760px;white-space:pre-line;text-wrap:balance}.discovery-intro button{margin-top:30px}.my-vibe-dialog{width:min(590px,calc(100vw - 24px));max-height:90dvh;padding:24px;border:1px solid #cdd9d6;border-radius:22px;background:#f8faf8;color:#263d43}.my-vibe-dialog::backdrop,.discovery-box-dialog::backdrop{background:#203b4377;backdrop-filter:blur(5px)}.my-vibe-dialog button{min-height:44px;margin:8px 8px 8px 0}.discovery-field{display:grid;gap:8px;margin:18px 0;font-size:15px}.discovery-field input,.discovery-field select{font-size:16px;min-height:44px;width:100%;padding:10px;border:1px solid #b8c8c1;border-radius:10px;background:white}.discovery-check{display:flex;align-items:center;gap:12px;min-height:48px;font-size:14px}.discovery-check input{width:20px;height:20px;flex-shrink:0;accent-color:#407970}.private-photo{display:block;max-width:100%;max-height:260px;object-fit:contain;border-radius:16px;margin:14px auto}.my-vibe-dialog summary{min-height:44px;padding-top:14px;cursor:pointer}.my-vibe-dialog fieldset{border:1px solid #d4dfd8;border-radius:12px}.discovery-box-dialog{width:100vw;height:100dvh;max-width:100vw;max-height:100dvh;inset:0;margin:0;border:0;padding:0;background:radial-gradient(ellipse at 50% 30%,#4b6268,#172c35);color:#fff9e9;overflow:auto}.discovery-box-stage{width:100%;max-width:1100px;margin:10dvh auto 0}.discovery-box-stage canvas{height:65dvh!important;min-height:300px}.discovery-box-stage>div{background:transparent!important}.discovery-status{text-align:center;margin:24px;padding:0 16px;color:#fff9e9}.box-close{position:absolute;z-index:3;top:max(16px,env(safe-area-inset-top));right:18px;border:1px solid #d8d4c680;background:#ffffff12;color:#fff9e9;min-height:44px}.discovery-reason{font-size:14px;line-height:1.6;padding:14px;background:#e5eee7;border-radius:12px}.profile-actions{flex-wrap:wrap}.profile-actions button{min-height:44px}#chat-form>.text-button{margin-right:18px;min-height:44px}#demo-profile .demo-photo img{object-fit:contain;background:#e9ede7;max-height:360px}#demo-profile .demo-profile-head img{object-fit:cover}@media(max-width:700px){.conversation-head{flex-wrap:wrap}.conversation-head>.text-button{margin-left:0}.my-vibe-dialog{padding:18px}.discovery-box-stage{margin-top:12dvh}.discovery-box-stage canvas{height:63dvh!important}.discovery-intro h1{font-size:38px}}@media(prefers-reduced-motion:reduce){.discovery-intro{animation:none}button{transition:none}}
+/* Compact conversation surfaces: disclosure lives in settings and the reviewer guide. */
+#scope-note,#demo-reply-note,footer [data-i18n="qlooIntro"],.discovery-reason,#demo-start-hint,#demo-status,[data-i18n="privacy"]{display:none!important}
+.chat-switch button{min-height:44px;padding:10px 14px}
+.messages .bubble{line-height:1.55}
+.connection-row{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #dde6e2;flex-wrap:wrap;width:100%}
+.connection-row img{width:44px;height:44px;border-radius:50%;object-fit:cover}
+.connection-row small{color:#637a76}
+.connection-row .text-button{margin-left:auto;font-size:13px}
+.solo-category{margin:10px 8px 0 0;min-height:44px}
+.solo-results{display:grid;gap:10px;padding:0 18px 12px}
+.solo-card{background:#eef5f0;border-radius:14px;padding:14px}
+.solo-card h3{font-size:17px;margin:5px 0}
+.solo-card small{color:#526e64}
+.onboarding-next{margin:14px 0;padding:14px;background:#edf5f1;border-radius:16px}
+.onboarding-next button{margin-right:10px}
+@media(max-width:600px){
+ .conversation-head{flex-wrap:wrap;gap:8px;padding:12px}
+ .conversation-head h2{font-size:17px}
+ .conversation-head>.text-button{font-size:13px;padding:8px;min-height:44px}
+ .conversation-head>div{flex:1;min-width:120px}
+ .conversation-head #shared-participants{font-size:12px}
+ .chat-switch{margin:8px 10px}
+ .chat-switch button{font-size:15px;white-space:nowrap}
+ .messages{padding:12px;min-height:220px}
+ .messages .bubble{font-size:16px;padding:12px 14px;max-width:100%;border-radius:17px}
+ .messages .sender{font-size:12px;margin-bottom:5px}
+ #chat-form{padding:10px}
+ #chat-form>.text-button{font-size:13px;padding:8px;min-height:44px}
+ .composer textarea{font-size:16px;min-height:48px}
+ .shared-space-nav button{font-size:14px;padding:12px 8px}
+ .perspective-bar{font-size:12px}
+ footer{justify-content:flex-end;padding:8px 12px}
+ .my-vibe-dialog{padding:18px}
+}

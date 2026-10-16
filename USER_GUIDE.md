@@ -98,3 +98,9 @@ This is a single-browser prototype, not a real multi-user dating service. It doe
 ### Discover a bridge
 
 After selecting both Vibes and enabling sharing, enter a city and select Start together directly. You do not need to press Use this city first. Make plans opens with shared themes when available and a new film supported by Qloo contributions from both Vibes. Open Why this bridge? to see the evidence boundary. Consider this together creates a proposed plan; review and confirm each perspective separately. Missing provider evidence has an explicit retry path and never becomes a made-up common interest.
+
+## Personal exploration and independent connections
+
+The mobile conversation keeps evaluation details in this guide. Fictional people retain a small Demo label. After three initial visitor messages, an optional invitation opens the black box; Stay with EVE dismisses it. For me provides Qloo film, music-artist and book recommendations from the visitor's selected verified interests alone. With no selected interests, My Vibe opens for review first. Private chat and partner data do not enter the solo Qloo request.
+
+Connections switches between independent conversations and Just me & EVE. Each connection keeps separate chats, sharing choices, plans, agreements and memories. End connection stops sharing, archives direct messages and kept memories, and excludes that person from later introductions during this session. Archives are read-only. This remains a session-only fictional demonstration, not multi-account messaging or durable storage.

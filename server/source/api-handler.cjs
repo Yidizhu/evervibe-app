@@ -2,7 +2,7 @@
 
 // Fetch API boundary. Inject services/configuration from the host (Node or Worker).
 // This module deliberately has no filesystem, Node HTTP, or environment access.
-const POST_ROUTES=new Set(['/api/recommend','/api/eve/chat','/api/eve/plan','/api/eve/assist','/api/eve/proactive','/api/try/search','/api/try/compare','/api/try/private','/api/try/profile','/api/try/companion','/api/try/assist']);
+const POST_ROUTES=new Set(['/api/recommend','/api/eve/chat','/api/eve/plan','/api/eve/assist','/api/eve/proactive','/api/try/search','/api/try/compare','/api/try/private','/api/try/profile','/api/try/solo','/api/try/companion','/api/try/assist']);
 const JSON_HEADERS={'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'};
 const reply=(status,body,headers={})=>new Response(JSON.stringify(body),{status,headers:{...JSON_HEADERS,...headers}});
 const failure=(status,code)=>Object.assign(new Error(code),{status,code});
@@ -82,6 +82,7 @@ function createApiHandler(options={}){
    else if(route==='/api/try/search')result=await call(tryService,'search',input,signal);
    else if(route==='/api/try/compare')result=await call(tryService,'compare',input,signal);
    else if(route==='/api/try/companion')result=await call(companion,'reply',input,signal);
+   else if(route==='/api/try/solo')result=await call(tryService,'solo',input,signal);
    else if(route==='/api/try/profile')result=await call(tryService,'summarizeProfile',input,signal);
    else if(route==='/api/try/private')result=await call(tryService,'privateChat',input,signal);
    else if(route==='/api/try/assist')result=await call(tryService,'assist',input,signal);

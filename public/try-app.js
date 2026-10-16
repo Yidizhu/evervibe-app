@@ -31,6 +31,9 @@
   copy.en.fallbackCity='Fallback city';copy.zh.fallbackCity='备用城市';
   Object.assign(copy.en,{quickExample:'Try two different tastes',quickLoading:'Looking up two sample films…',quickReady:'Knives Out + Amélie, in New York. Share these sample Vibes to begin.',needYou:'Choose something you love first.',needPartner:'Open the demo connection or choose an interest for the sample partner.',needConsent:'Tick “Share these Vibes” beside Start together to continue.',consent:'Share these Vibes with EVE for this session',privacy:'Starting compares your selected interests with Qloo. Your notes and chat reach EVE when you send a message. Only your language preference is saved on this device.',bridgeTitle:'A little common ground',bridgeLoading:'Qloo is comparing both Vibes…',bridgeEmpty:'No shared themes returned this time. Your different tastes can still inspire a plan.',bridgeUnavailable:'Shared themes are unavailable right now. You can still plan from both Vibes.',bridgeSource:'Cultural themes from Qloo · not a relationship score',bridgeCache:'Recent Qloo comparison',firstIdea:'Could you find a cultural place in {city} that fits both our tastes? We want time to talk.'});
   Object.assign(copy.zh,{quickExample:'试试两种不同的口味',quickLoading:'正在查找两部示例电影…',quickReady:'《利刃出鞘》＋《天使爱美丽》，地点纽约。共享这两份示例 Vibe 即可开始。',needYou:'先选一个你喜欢的事物。',needPartner:'打开示例相遇，或为示例同伴选一个兴趣。',needConsent:'勾选“本次与 EVE 共享这些 Vibe”，再开始一起体验。',consent:'本次与 EVE 共享这些 Vibe',privacy:'开始时由 Qloo 比较所选兴趣。发送消息后，你们的心情备注和聊天才交给 EVE。设备上只保存语言偏好。',bridgeTitle:'一点共同的喜欢',bridgeLoading:'Qloo 正在比较两份 Vibe…',bridgeEmpty:'这次没有返回共同主题。不同的喜欢也能带来一起尝试的灵感。',bridgeUnavailable:'共同主题暂时连接不上，仍可根据两人的兴趣安排。',bridgeSource:'文化主题来自 Qloo · 不是感情评分',bridgeCache:'最近的 Qloo 比较结果',firstIdea:'帮我们在{city}找个适合两人口味的文化去处吧，想留些时间聊聊天。'});
+  Object.assign(copy.en,{privateTab:'EVE',directTab:'{name}',fictionalPartner:'Demo',privatePlaceholder:'Message EVE…',directPlaceholder:'Message {name}…'});
+  Object.assign(copy.zh,{privateTab:'EVE',directTab:'{name}',fictionalPartner:'示例',privatePlaceholder:'和 EVE 说说…',directPlaceholder:'发给{name}…'});
+  const chatLocale=messages=>/[\u3400-\u9fff]/u.test(messages.filter(m=>m.from!=='eve'&&m.from!=='partner').at(-1)?.text||'')?'zh':/[a-zA-Z]/.test(messages.filter(m=>m.from!=='eve'&&m.from!=='partner').at(-1)?.text||'')?'en':state.locale;
   function initialLocale() {
     const fromUrl=new URLSearchParams(location.search).get('lang');
     if(['en','zh'].includes(fromUrl))return fromUrl;
@@ -116,11 +119,11 @@
     memoriesUI.render();agreementsUI.render();
     $('conversation-content').setAttribute('aria-labelledby',plans?'plans-tab':'chat-tab');
     $('chat-switch').hidden=plans||!state.connection.opened;$('private-tab').setAttribute('aria-selected',String(!direct));$('direct-tab').setAttribute('aria-selected',String(direct));
-    $('direct-tab').textContent=t('directTab').replace('{name}',other);$('direct-tab').hidden=!state.connection.opened;
+    $('direct-tab').textContent=selectedPerson?.name||t('directTab').replace('{name}',other);$('direct-tab').hidden=!state.connection.opened;
     $('scope-note').textContent=plans?[t('you'),t('partner'),'EVE'].join(' · '):t(direct?'directScope':'privateScope');
     $('message').placeholder=t(plans?'messagePlaceholder':direct?'directPlaceholder':'privatePlaceholder').replace('{name}',other);
     $('recommendations').hidden=!plans;
-    document.querySelector('.speaker-row').hidden=true;
+    document.querySelector('.speaker-row').hidden=true;renderSolo();
   }
   function errorKey(code) {
     if(code==='LOCATION_NOT_FOUND')return 'locationNotFound';
@@ -341,9 +344,10 @@
       return;
     }
     messages.forEach(message=>{
-      const article=node('article','message '+(message.from==='eve'?'eve':message.from===state.speaker?'you':'partner'));article.append(node('p','sender',message.from==='eve'?'EVE':t(message.from)+(message.simulated?' · '+t('simulated'):'')),node('p','bubble',message.text));container.append(article);
+      const article=node('article','message '+(message.from==='eve'?'eve':message.from===state.speaker?'you':'partner'));article.append(node('p','sender',message.from==='eve'?'EVE':message.from==='partner'?(selectedPerson?.name||t('partner')):t(message.from)),node('p','bubble',message.text));container.append(article);
     });
     if(state.view==='private'&&messages.at(-1)?.from==='eve'&&state.connection.opened)container.append(button(t('writeTogether').replace('{name}',otherName()),()=>{enterDirect();},'text-button private-next'));
+    if(state.view==='private'&&state.speaker==='you'&&!selectedPerson&&messages.filter(m=>m.from==='you').length>=3&&!onboardingDismissed){const next=node('div','onboarding-next');next.append(node('p','',D('Ready to explore? We can also keep chatting.','想去看看吗？也可以继续和我聊。')),button(D('Open black box','打开黑盒'),launchDiscovery,'primary'),button(D('Stay with EVE','继续和 EVE 聊'),()=>{onboardingDismissed=true;renderMessages();},'text-button'));container.append(next);}
     container.scrollTop=container.scrollHeight;
   }
   function renderPlan() {
@@ -410,7 +414,7 @@
     let replied=false;
     const messages=thread.filter(m=>view==='direct'||m.revision===revision).slice(-20).map(({from,text})=>({from,text}));
     try{
-      const data=await post('/api/try/companion',{locale:state.locale,scope:view,messages,...(selectedPerson?{characterId:selectedPerson.id}:{}),profile:{interests:state.vibes.partner.entities.map(e=>e.title),note:state.vibes.partner.note}},controller.signal);
+      const data=await post('/api/try/companion',{locale:chatLocale(messages),scope:view,messages,...(selectedPerson?{characterId:selectedPerson.id}:{}),profile:{interests:state.vibes.partner.entities.map(e=>e.title),note:state.vibes.partner.note}},controller.signal);
       if(token!==serials.assist||revision!==state.revision||!state.autoPartner||state.view!==view)return;
       if(data.simulated!==true||typeof data.text!=='string'||!data.text.trim())throw Error('INTERNAL_ERROR');
       thread.push({from:'partner',text:data.text,revision,sourceLang:data.sourceLang,simulated:true});replied=true;renderMessages();
@@ -435,7 +439,7 @@
     const partnerShared=state.sharing[otherPerson()].vibe,vibes={};
     for(const owner of [actor,...(partnerShared?[otherPerson()]:[])])vibes[owner]={entities:state.vibes[owner].entities.map(item=>item.id),note:state.vibes[owner].note};
     try{
-      const data=await post('/api/try/private',{locale:state.locale,actor,partnerShared,vibes,messages},controller.signal);
+      const data=await post('/api/try/private',{locale:chatLocale(messages),actor,partnerShared,vibes,messages},controller.signal);
       if(token!==serials.assist)return;
       if(typeof data.text!=='string'||!data.text.trim())throw Error('INTERNAL_ERROR');
       state.privateMessages[actor].push({from:'eve',text:data.text,sourceLang:data.sourceLang});renderMessages();
@@ -503,7 +507,7 @@
     renderMessages();assist();
   });
   $('reset').addEventListener('click',()=>{
-    discoveryController?.abort();selectedPerson=null;relationshipSessions.clear();discoveryResults=[];discoveryIndex=-1;if(personal.photo)URL.revokeObjectURL(personal.photo);Object.assign(personal,{age:null,gender:'',genders:[],minAge:null,maxAge:null,localOnly:false,discoverable:false,ideal:'',intro:'',photo:null});
+    discoveryController?.abort();selectedPerson=null;relationshipSessions.clear();connectionEntries.clear();endedConnections.clear();onboardingDismissed=false;state.soloItems=[];discoveryResults=[];discoveryIndex=-1;if(personal.photo)URL.revokeObjectURL(personal.photo);Object.assign(personal,{age:null,gender:'',genders:[],minAge:null,maxAge:null,localOnly:false,discoverable:false,ideal:'',intro:'',photo:null});
     controllers.example?.abort();controllers.example=null;state.exampleBusy=false;stopCompare();
     stopAssist();stopConnectionSearch();state.connection={opened:false,busy:false,status:null,error:false};$('manual-vibes').open=false;for(const owner of ['you','partner']){abortSearch(owner);state.vibes[owner]={entities:[],note:''};state.search[owner]={query:'',type:'movie',items:[],busy:false,error:null,searched:false};$(owner+'-query').value='';$(owner+'-type').value='movie';$(owner+'-note').value='';}
     clearLocation();closeSettings();boxDispose?.();boxDispose=null;state.showBox=true;$('vibe-setup').open=false;state.city='';state.autoPartner=true;state.busyKind=null;state.retryKind=null;$('manual-location').open=false;state.consent=false;state.started=false;state.everStarted=false;state.revision++;state.speaker='you';state.messages=[];state.plan=null;state.selected=null;state.confirmations={you:false,partner:false};state.error=null;state.status=null;state.setup=null;state.retry=false;
@@ -517,7 +521,9 @@
   // Private discovery is session-local. No feed or real-user registration.
   const pool=window.EverDiscoveryPool, rules=window.EverDiscoveryRules;
   let discoveryController=null, discoveryResults=[], discoveryIndex=-1;
-  const relationshipSessions=new Map();
+  const relationshipSessions=new Map(), connectionEntries=new Map(), endedConnections=new Set();
+  let onboardingDismissed=false;
+  state.soloItems=[];
   const personal={age:null,gender:'',genders:[],minAge:null,maxAge:null,localOnly:false,discoverable:false,ideal:'',photo:null};
   const D=(en,zh)=>state.locale==='zh'?zh:en;
   function personText(key){
@@ -560,9 +566,9 @@
 
   function renderMyVibe(){
     mineDialog.replaceChildren();const head=node('div','dialog-heading');head.append(node('h2','',D('My Vibe','我的 Vibe')),button(D('Done','完成'),()=>mineDialog.close()));mineDialog.append(head);
-    mineDialog.append(node('p','fine',D('Your private introduction. No public profile, likes or comments. This demo keeps it only in this tab.','这是你的私密介绍，没有公开主页、点赞或评论。本次体验仅保存在当前标签页。')));
+    
     if(personal.photo){const img=node('img','private-photo');img.src=personal.photo;img.alt=D('Your chosen photo','你选择的照片');mineDialog.append(img,button(D('Remove photo','删除照片'),()=>{URL.revokeObjectURL(personal.photo);personal.photo=null;renderMyVibe();}));}
-    mineDialog.append(button(D('Choose a photo','选择照片'),()=>photoInput.click()),node('p','fine',D('Photos stay on this device in the demo; EVE does not analyse this image. Add a few words if you like.','示例中的照片留在本机，EVE 不分析这张图片；你也可以写几句话。')));
+    mineDialog.append(button(D('Choose a photo','选择照片'),()=>photoInput.click()),node('p','fine',D('Photo stays on this device.','照片仅保存在本机。')));
     function field(title,key,type='text'){const wrap=node('label','discovery-field',title),el=node('input');el.type=type;el.value=personal[key]??'';if(type==='number'){el.min=18;el.max=99;el.inputMode='numeric';}el.maxLength=300;el.addEventListener('input',()=>{personal[key]=type==='number'?(el.value?Number(el.value):null):el.value;});wrap.append(el);return wrap;}
     mineDialog.append(field(D('My introduction','我的介绍'),'intro'));
     mineDialog.append(field(D('What I’m hoping for in a partner','我期待怎样的伴侣'),'ideal'));
@@ -574,11 +580,11 @@
     for(const [value,en,zh] of [['','Not specified','未填写'],['woman','Woman','女性'],['man','Man','男性'],['nonbinary','Nonbinary','非二元']]){const option=node('option','',D(en,zh));option.value=value;select.append(option);}select.value=personal.gender;select.onchange=()=>personal.gender=select.value;gender.append(select);details.append(gender);
     const pref=node('fieldset');pref.append(node('legend','',D('I’m open to meeting','我愿意认识')));for(const [value,en,zh] of [['woman','Women','女性'],['man','Men','男性'],['nonbinary','Nonbinary people','非二元人士']]){const l=node('label','discovery-check'),c=node('input');c.type='checkbox';c.checked=personal.genders.includes(value);c.onchange=()=>personal.genders=c.checked?[...personal.genders,value]:personal.genders.filter(x=>x!==value);l.append(c,document.createTextNode(D(en,zh)));pref.append(l);}details.append(pref,field(D('Preferred minimum age (optional)','对方最小年龄（可不填）'),'minAge','number'),field(D('Preferred maximum age (optional)','对方最大年龄（可不填）'),'maxAge','number'));
     const local=node('label','discovery-check'),localCheck=node('input');localCheck.type='checkbox';localCheck.checked=personal.localOnly;localCheck.onchange=()=>personal.localOnly=localCheck.checked;local.append(localCheck,document.createTextNode(D('Only show verified nearby people','仅显示已核实的附近人士')));details.append(local,node('p','fine',D('Demo characters have no verified location. This requirement will leave the demo pool empty.','示例人物没有经过核实的位置，开启此条件后不会推荐示例人物。')));mineDialog.append(details);
-    const permission=node('label','discovery-check'),check=node('input');check.type='checkbox';check.checked=personal.discoverable;check.onchange=()=>personal.discoverable=check.checked;permission.append(check,document.createTextNode(D('Use my selected tastes to explore demo connections with Qloo','用我选好的兴趣，通过 Qloo 探索示例相遇')));mineDialog.append(permission);
+    const permission=node('label','discovery-check'),check=node('input');check.type='checkbox';check.checked=personal.discoverable;check.onchange=()=>personal.discoverable=check.checked;permission.append(check,document.createTextNode(D('Use my tastes for introductions','用我的兴趣探索相遇')));mineDialog.append(permission);
     const preview=node('details');preview.append(node('summary','',D('What a connection could see','对方可以看到什么')));preview.append(node('p','',personal.intro||D('Your introduction is still yours to write.','你的介绍还等着你来写。')),node('p','',state.vibes.you.entities.map(x=>x.title).join(' · ')));if(personal.photo){const img=node('img','private-photo');img.src=personal.photo;img.alt=D('Preview of your chosen photo','你选择的照片预览');preview.append(img);}preview.append(node('p','fine',D('Only your chosen photo, introduction and selected interests. Private EVE messages are not included. No real recipient exists in this demo.','仅包含你选好的照片、介绍与兴趣，不含 EVE 私聊。本示例没有真实接收者。')));mineDialog.append(preview,button(D('Explore my black box','探索我的黑盒'),()=>{mineDialog.close();launchDiscovery();},'primary'));
   }
   function refreshDiscovery(){
-    myVibeButton.textContent=D('My Vibe','我的 Vibe');photoButton.textContent=D('Add a photo','添加照片');discoverButton.textContent=D('Open my black box','打开我的黑盒');boxClose.textContent=D('Back to EVE','返回 EVE');skipPerson.textContent=D('Another connection','看看另一位');
+    myVibeButton.textContent=D('My Vibe','我的 Vibe');connectionsButton.textContent=D('Connections','连接');soloButton.textContent=D('For me','给我的推荐');photoButton.textContent=D('Add a photo','添加照片');discoverButton.textContent=D('Open my black box','打开我的黑盒');boxClose.textContent=D('Back to EVE','返回 EVE');skipPerson.textContent=D('Another connection','看看另一位');
     if(mineDialog.open)renderMyVibe();
     if(selectedPerson){const head=document.querySelector('.demo-profile-head');head.querySelector('h2').textContent=selectedPerson.name+', '+selectedPerson.age;const img=head.querySelector('img');img.src=selectedPerson.photo;img.alt=selectedPerson.name;const pic=document.querySelector('.demo-photo img');pic.src=selectedPerson.photo;pic.alt=D('Fictional portrait of ','虚构人物照片：')+selectedPerson.name;
       const result=discoveryResults.find(r=>r.person.id===selectedPerson.id);const themes=result?.comparison?.shared?.slice(0,3).map(x=>x.name).filter(Boolean)||[];
@@ -593,8 +599,8 @@
   }
   async function findConnections(){
     discoveryController?.abort();const controller=new AbortController();discoveryController=controller;discoveryResults=[];discoveryIndex=-1;
-    const eligible=pool.map(person=>({person,eligibility:rules.eligibility(personal,person)})).filter(x=>!x.eligibility.rejected.length&&!personal.localOnly);
-    if(!eligible.length){findStatus.textContent=D('No demo character meets these conditions. You can review My Vibe; your preferences have not been changed.','没有示例人物符合这些条件。可以返回修改我的 Vibe，你的条件没有被自动更改。');return;}
+    const eligible=pool.map(person=>({person,eligibility:rules.eligibility(personal,person)})).filter(x=>!x.eligibility.rejected.length&&!personal.localOnly&&!endedConnections.has(x.person.id)&&!connectionEntries.has(x.person.id));
+    if(!eligible.length){findStatus.textContent=D('No new connection is available with these preferences. Your existing chats are in Connections.','这些条件下暂时没有新的相遇。已认识的人在连接列表里。');return;}
     const useQloo=personal.discoverable&&state.vibes.you.entities.length>0;
     for(const entry of eligible){
       if(controller.signal.aborted)return;
@@ -616,19 +622,57 @@
     if(!discoveryResults.length){launchDiscovery();return;}
     discoveryIndex++;
     if(discoveryIndex>=discoveryResults.length){discoveryIndex=discoveryResults.length-1;reason.textContent=D('You’ve seen this small demo pool. Return to EVE or update My Vibe.','这一小组示例人物已经看完了，可以返回 EVE 或更新我的 Vibe。');return;}
+    if(endedConnections.has(discoveryResults[discoveryIndex].person.id)){chooseNext();return;}
     switchConnection(discoveryResults[discoveryIndex]);
   }
-  const relationshipKeys=['messages','privateMessages','directMessages','drafts','plan','selected','confirmations','sharing','unread','started','everStarted','consent','checkins','bridge'];
+  const relationshipKeys=['soloItems','messages','privateMessages','directMessages','drafts','plan','selected','confirmations','sharing','unread','started','everStarted','consent','checkins','bridge'];
   function switchConnection(entry){
     stopAssist();stopCompare();stopConnectionSearch();abortSearch('partner');
-    if(selectedPerson){const snapshot=Object.fromEntries(relationshipKeys.map(k=>[k,structuredClone(state[k])]));snapshot.partnerVibe=structuredClone(state.vibes.partner);snapshot.memories=memoriesUI.snapshot();snapshot.agreements=agreementsUI.snapshot();relationshipSessions.set(selectedPerson.id,snapshot);}
-    selectedPerson=entry.person;state.revision++;state.speaker='you';state.view='private';state.error=null;state.retry=false;state.status=null;state.setup=null;
+    saveConnection();
+    selectedPerson=entry.person;connectionEntries.set(entry.person.id,entry);state.revision++;state.speaker='you';state.view='private';state.error=null;state.retry=false;state.status=null;state.setup=null;
     const saved=relationshipSessions.get(selectedPerson.id);
     if(saved){for(const key of relationshipKeys)state[key]=structuredClone(saved[key]);state.vibes.partner=structuredClone(saved.partnerVibe);memoriesUI.restore(saved.memories);agreementsUI.restore(saved.agreements);state.started=false;state.confirmations={you:false,partner:false};if(state.plan)state.plan.expired=true;}
-    else {state.messages=[];state.privateMessages={you:[],partner:[]};state.directMessages=[];state.drafts={};state.plan=null;state.selected=null;state.confirmations={you:false,partner:false};state.sharing={you:{vibe:false,eve:true},partner:{vibe:false,eve:true}};state.unread={you:0,partner:0};state.started=false;state.everStarted=false;state.consent=false;state.checkins=new Set();state.bridge=null;state.vibes.partner={entities:entry.entities||[],note:selectedPerson.interests.join(', ').slice(0,160)};memoriesUI.reset();agreementsUI.reset();}
+    else {state.soloItems=[];state.messages=[];state.privateMessages={you:[],partner:[]};state.directMessages=[];state.drafts={};state.plan=null;state.selected=null;state.confirmations={you:false,partner:false};state.sharing={you:{vibe:false,eve:true},partner:{vibe:false,eve:true}};state.unread={you:0,partner:0};state.started=false;state.everStarted=false;state.consent=false;state.checkins=new Set();state.bridge=null;state.vibes.partner={entities:entry.entities||[],note:selectedPerson.interests.join(', ').slice(0,160)};memoriesUI.reset();agreementsUI.reset();}
     state.connection={opened:true,busy:false,status:'demoReady',error:false};state.showBox=true;state.search.partner={query:'',type:'movie',items:[],busy:false,error:null,searched:false};$('partner-note').value=state.vibes.partner.note;$('message').value='';translate();
     if(!state.vibes.partner.entities.length)loadDemoInterest();
   }
+    const connectionsDialog=node('dialog','my-vibe-dialog connections-dialog');document.body.append(connectionsDialog);
+  const connectionsButton=button(D('Connections','连接'),()=>{renderConnections();connectionsDialog.showModal();},'text-button');connectionsButton.id='connections-action';$('show-blackbox').before(connectionsButton);
+  const soloHost=node('section','solo-results');soloHost.id='solo-results';$('messages').after(soloHost);
+  const soloButton=button(D('For me','给我的推荐'),()=>{soloDialog.replaceChildren();const head=node('div','dialog-heading');head.append(node('h2','',D('Something for you','给自己一点新发现')),button(D('Done','完成'),()=>soloDialog.close()));soloDialog.append(head);
+    for(const [type,en,zh] of [['movie','A film','电影'],['artist','Music','音乐'],['book','A book','书籍']])soloDialog.append(button(D(en,zh),()=>soloRecommend(type),'solo-category'));
+    soloDialog.showModal();},'text-button');soloButton.id='solo-action';$('chat-form').append(soloButton);
+  const soloDialog=node('dialog','my-vibe-dialog');document.body.append(soloDialog);
+  function saveConnection(){const snapshot=Object.fromEntries(relationshipKeys.map(k=>[k,structuredClone(state[k])]));snapshot.partnerVibe=structuredClone(state.vibes.partner);snapshot.memories=memoriesUI.snapshot();snapshot.agreements=agreementsUI.snapshot();relationshipSessions.set(selectedPerson?.id||'solo',snapshot);}
+  function goSolo(){
+    stopAssist();stopCompare();stopConnectionSearch();abortSearch('partner');saveConnection();selectedPerson=null;state.revision++;
+    const saved=relationshipSessions.get('solo');
+    if(saved){for(const key of relationshipKeys)state[key]=structuredClone(saved[key]);memoriesUI.restore(saved.memories);agreementsUI.restore(saved.agreements);}
+    else {state.soloItems=[];state.messages=[];state.privateMessages={you:[],partner:[]};state.directMessages=[];state.drafts={};state.checkins=new Set();state.unread={you:0,partner:0};memoriesUI.reset();agreementsUI.reset();}
+    state.vibes.partner={entities:[],note:''};state.sharing={you:{vibe:false,eve:true},partner:{vibe:false,eve:true}};state.consent=false;state.started=false;state.everStarted=false;state.plan=null;state.selected=null;state.confirmations={you:false,partner:false};state.bridge=null;
+    state.connection={opened:false,busy:false,status:null,error:false};state.speaker='you';state.view='private';state.showBox=false;state.error=null;state.status=null;state.retry=false;$('message').value='';translate();
+  }
+  function renderConnections(){
+    connectionsDialog.replaceChildren();const head=node('div','dialog-heading');head.append(node('h2','',D('Connections','连接')),button(D('Done','完成'),()=>connectionsDialog.close()));connectionsDialog.append(head);
+    connectionsDialog.append(button(D('Just me & EVE','我和 EVE'),()=>{connectionsDialog.close();goSolo();},'connection-row'));
+    for(const [id,entry] of connectionEntries){if(endedConnections.has(id)){const archive=node('details','connection-archive');archive.append(node('summary','',entry.person.name+' · '+D('Archived','已归档')));const saved=relationshipSessions.get(id);for(const m of saved?.directMessages||[])archive.append(node('p','',(m.from==='you'?D('You','我'):entry.person.name)+': '+m.text));for(const m of saved?.memories?.store?.data?.saved||[])archive.append(node('p','',m.title+' — '+m.text));connectionsDialog.append(archive);continue;}const row=node('div','connection-row');const img=node('img');img.src=entry.person.photo;img.alt='';row.append(img,button(entry.person.name,()=>{connectionsDialog.close();switchConnection(entry);}),node('small','',D('Demo','示例')));
+      row.append(button(D('End connection','结束连接'),()=>{row.replaceChildren(node('p','',D('End sharing and archive this connection?','停止共享并归档这段连接？')),button(D('End','结束'),()=>{if(selectedPerson?.id===id)goSolo();endedConnections.add(id);const saved=relationshipSessions.get(id);if(saved){saved.consent=false;saved.started=false;saved.sharing={you:{vibe:false,eve:false},partner:{vibe:false,eve:false}};}renderConnections();},'text-button'),button(D('Keep connection','保留连接'),renderConnections));},'text-button'));connectionsDialog.append(row);}
+    connectionsDialog.append(button(D('Meet someone new','探索新的相遇'),()=>{connectionsDialog.close();launchDiscovery();},'primary'));
+  }
+  function renderSolo(){
+    soloHost.hidden=state.view!=='private'||state.speaker!=='you';soloButton.hidden=state.view!=='private'||state.speaker!=='you';connectionsButton.hidden=state.speaker!=='you';
+    soloHost.replaceChildren();if(soloHost.hidden)return;
+    for(const item of state.soloItems||[]){const card=node('article','solo-card');card.append(node('small','',D('For you · Qloo','给你 · Qloo')),node('h3','',item.title+(item.year?' · '+item.year:'')));soloHost.append(card);}
+  }
+  async function soloRecommend(type){
+    soloDialog.close();
+    if(!state.vibes.you.entities.length){renderMyVibe();mineDialog.showModal();return;}
+    if(state.busy)return;stopAssist();const token=serials.assist,controller=new AbortController();controllers.assist=controller;state.busy=true;state.error=null;state.retry=false;renderControls();
+    try{const result=await post('/api/try/solo',{locale:state.locale,type,entities:state.vibes.you.entities.map(x=>x.id)},controller.signal);if(token!==serials.assist)return;state.soloItems=result.items;state.privateMessages.you.push({from:'eve',text:result.items.length?(chatLocale(state.privateMessages.you)==='zh'?'为你找到了：':'A few discoveries for you: ')+result.items.map(x=>x.title).join(' · '):D('Nothing came back this time. Try another kind of discovery.','这次没有找到结果，换一种探索试试吧。')});renderMessages();renderSolo();}
+    catch(error){if(token===serials.assist&&error.name!=='AbortError')state.error=errorKey(error.message);}
+    finally{if(token===serials.assist){state.busy=false;controllers.assist=null;renderControls();}}
+  }
+
   const intro=node('div','discovery-intro');intro.setAttribute('role','dialog');intro.setAttribute('aria-label','Welcome to EverVibe');intro.append(node('p','eyebrow','EverVibe'),node('h1','',D('Less scrolling.\nMore discovering each other.','少一点滑动，\n多一点彼此发现。')),button(D('Meet EVE','认识 EVE'),()=>intro.remove(),'primary'));document.body.append(intro);setTimeout(()=>intro.remove(),3200);
 
   state.privateMessages.you.push({from:'eve',text:D('What have you been enjoying lately — a film, a song, a book, or a small moment? You can also share a photo, or open your black box when you feel ready.','最近有什么让你喜欢的电影、音乐、书，或者小事吗？也可以分享一张照片，或准备好后打开黑盒。'),sourceLang:state.locale});

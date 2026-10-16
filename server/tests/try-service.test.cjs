@@ -419,3 +419,15 @@ test('insights has a longer bounded budget than search without automatic retries
  await assert.rejects(bounded.service.assist(request()),{code:'QLOO_TIMEOUT'});
  assert.equal(bounded.calls.filter(call=>call.url.pathname==='/v2/insights').length,1);
 });
+
+test('solo recommendations use only verified own IDs and ignore relationship context',async()=>{
+ const f=fixture({results:[catalog.book,catalog.book]});await f.seed();
+ const input={locale:'en',type:'book',entities:[ids.film]};
+ Object.defineProperty(input,'partner',{get(){throw Error('partner leak');}});
+ Object.defineProperty(input,'messages',{get(){throw Error('chat leak');}});
+ const result=await f.service.solo(input);
+ assert.equal(result.source,'qloo');assert.equal(result.items.length,1);assert.equal(result.items[0].title,'Provider Book');assert.equal(f.sent.length,0);
+ const call=f.calls.find(c=>c.url.pathname==='/v2/insights');assert.equal(call.url.searchParams.get('signal.interests.entities'),ids.film);assert.equal(call.url.searchParams.get('filter.type'),'urn:entity:book');
+ await assert.rejects(f.service.solo({...input,entities:[]}),{code:'BAD_REQUEST'});
+ await assert.rejects(f.service.solo({...input,type:'place'}),{code:'BAD_REQUEST'});
+});

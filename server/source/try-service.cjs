@@ -294,6 +294,16 @@ function createTryService(options={}){
   return {summary:clean(draft.summary,300),ideal:clean(draft.ideal,300),interests,source:'gemini',requiresReview:true};
  }
 
+ async function solo(input,{signal}={}){
+  if(!object(input)||!['en','zh'].includes(input.locale)||!SEARCH_TYPES.includes(input.type)||!Array.isArray(input.entities)||!input.entities.length||input.entities.length>3||input.entities.some(id=>!validId(id)))fail(400,'BAD_REQUEST','Choose your interests first.');
+  const ids=[...new Set(input.entities)];
+  for(const id of ids)await verifiedEntity(id,signal);
+  const body=await request('/v2/insights',{'filter.type':'urn:entity:'+input.type,'signal.interests.entities':ids.join(','),'filter.exclude.entities':ids.join(','),take:'6'},signal);
+  if(!Array.isArray(body.results?.entities))fail(502,'QLOO_RESPONSE_INVALID','Recommendations are unavailable.');
+  const items=[...new Map(body.results.entities.map(e=>catalogItem(e,input.type)).filter(e=>e&&!ids.includes(e.id)).map(e=>[e.id,e])).values()].slice(0,3);
+  return {source:'qloo',items};
+ }
+
  async function privateChat(input,{signal}={}){
   aborted(signal);
   if(!object(input)||!['en','zh'].includes(input.locale)||!['you','partner'].includes(input.actor)||typeof input.partnerShared!=='boolean'||!object(input.vibes)||!Array.isArray(input.messages)||!input.messages.length||input.messages.length>20)fail(400,'BAD_REQUEST','Invalid private conversation request.');
@@ -325,7 +335,8 @@ function createTryService(options={}){
    NATURAL_EVE_COPY,
    'Distinguish what the person actually told you from a possible interpretation. Do not claim to detect unspoken love, diagnose either person, assign a compatibility score, or know how the companion will react. Suggest wording they can adapt; never send it, claim it was delivered, promise reconciliation, or turn private chat into permission to share it.',
    'This is advice, not a live recommendations or booking service. Do not invent real venues, event details, opening hours, prices, facilities, availability, travel times or Qloo results. You can propose an activity format and suggest exploring it together in Make plans. Only verified public catalog facts supplied in the context may be treated as facts about selected works or artists. Earlier model messages do not verify additional facts.',
-   input.locale==='zh'?'用自然、贴心、口语化的中文，text 不超过180字。不写标题，不讲产品理念。':'Use warm, natural English in 1–4 short sentences, under 110 words. No headings or product pitches.'
+   'Being single is a valid choice. Help the visitor explore their own cultural interests without steering them toward dating. During first acquaintance, ask at most one short question per response. After about three visitor messages, stop interviewing and offer a gentle choice to keep chatting or explore the black box. Never claim you have sufficient evidence of compatibility.',
+   input.locale==='zh'?'用自然口语中文，2到3句，不超过100字，最多一个问题。不写标题，不讲产品理念。':'Use natural English in 2–3 short sentences, under 65 words, at most one question. No headings or product pitches.'
   ].join('\n'),context,{type:'object',properties:{text:{type:'string'}},required:['text'],additionalProperties:false},signal,1200);
   if(!object(result)||typeof result.text!=='string'||!clean(result.text,900))fail(502,'GEMINI_EMPTY_REPLY','EVE did not return a reply.');
   aborted(signal);return {text:clean(result.text,900),source:'gemini',sourceLang:input.locale};
@@ -398,7 +409,7 @@ function createTryService(options={}){
   aborted(signal);
   return {kind:'plan',text:clean(curated.text,700),source:'qloo',sourceLang:context.locale,city:context.city,category,items,seeds:context.seeds,bridge,sharedTagsApplied:bridge.shared.map(tag=>tag.id),explanationAvailable:!curated.fallback,replaceSelection:hasPlanContext&&route.replaceSelection===true};
  }
- return {search,compare,privateChat,summarizeProfile,assist};
+ return {search,compare,privateChat,summarizeProfile,solo,assist};
 }
 module.exports={createTryService};
 
