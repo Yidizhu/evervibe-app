@@ -98,6 +98,7 @@
   function renderSpace(){
     const plans=state.view==='plans',direct=state.view==='direct',memories=state.view==='memories',other=otherName();
     renderEntry();
+    if($('my-vibe-action'))$('my-vibe-action').hidden=state.speaker!=='you';
     for(const id of ['profile-photo-action','profile-discover-action'])if($(id))$(id).hidden=state.view!=='private'||state.speaker!=='you';
     $('demo-reply-note').hidden=!state.connection.opened||(!plans&&!direct);$('demo-reply-note').textContent=t(state.autoPartner?'demoAutoNote':'demoManualNote');
     $('plans-tab').hidden=!state.connection.opened;$('memories-tab').hidden=!state.connection.opened;
@@ -526,7 +527,7 @@
     return labels[key]??null;
   }
   const mineDialog=node('dialog','my-vibe-dialog');mineDialog.id='my-vibe-dialog';document.body.append(mineDialog);
-  const myVibeButton=button('My Vibe',()=>{renderMyVibe();mineDialog.showModal();},'text-button');$('show-blackbox').before(myVibeButton);
+  const myVibeButton=button('My Vibe',()=>{renderMyVibe();mineDialog.showModal();},'text-button');myVibeButton.id='my-vibe-action';$('show-blackbox').before(myVibeButton);
   const photoInput=node('input');photoInput.type='file';photoInput.accept='image/jpeg,image/png,image/webp';photoInput.hidden=true;document.body.append(photoInput);
   const photoButton=button('Add a photo',()=>photoInput.click(),'text-button');photoButton.id='profile-photo-action';$('chat-form').append(photoButton);
   const discoverButton=button('Open my black box',()=>launchDiscovery(),'text-button');discoverButton.id='profile-discover-action';$('chat-form').append(discoverButton);
