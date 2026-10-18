@@ -322,7 +322,7 @@ function createTryService(options={}){
   }
   const vibes={};
   for(const owner of owners){
-   const verified=[];for(const id of profiles[owner].ids){aborted(signal);verified.push(await verifiedEntity(id,signal));}
+   const verified=[];for(const id of profiles[owner].ids){aborted(signal);try{verified.push(await verifiedEntity(id,signal));}catch(error){if(error.code!=='TRY_INTEREST_EXPIRED')throw error;}}
    vibes[owner]={entities:verified,note:profiles[owner].note};
   }
   const context={locale:input.locale,scope:'private',actor,ownVibe:vibes[actor],messages:input.messages.map(message=>({from:message.from,text:clean(message.text,1500)}))};

@@ -141,10 +141,21 @@
   }
   Object.assign(copy.en,{recoverActivity:'Find cultural places',recoverMovie:'Find a film',recoverActivityMessage:'Find a cultural place for us to explore together.',recoverMovieMessage:'Find a film for us to watch together.'});
   Object.assign(copy.zh,{recoverActivity:'找一个文化场所',recoverMovie:'找一部电影',recoverActivityMessage:'帮我们找一个可以一起探索的文化场所。',recoverMovieMessage:'帮我们找一部适合一起看的电影。'});
-  async function post(path, body, signal) {
+  async function post(path, body, signal, recovered=false) {
     const response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal});
     let data;try{data=await response.json();}catch{throw new Error('INTERNAL_ERROR');}
-    if(!response.ok)throw new Error(data.error?.code || 'INTERNAL_ERROR');
+    if(!response.ok){
+      if(data.error?.code==='TRY_INTEREST_EXPIRED'&&!recovered&&path!=='/api/try/search'){
+        const ids=new Set([...(body.entities||[]),...Object.values(body.vibes||{}).flatMap(v=>v.entities||[])]);
+        const known=[...state.vibes.you.entities,...state.vibes.partner.entities,...pool.flatMap(p=>p.entities||[])];
+        for(const item of [...new Map(known.filter(e=>ids.has(e.id)).map(e=>[e.id,e])).values()]){
+          const fresh=await post('/api/try/search',{query:item.title,type:item.type,locale:state.locale},signal,true);
+          if(!fresh.items?.some(e=>e.id===item.id))throw new Error('TRY_INTEREST_EXPIRED');
+        }
+        return post(path,body,signal,true);
+      }
+      throw new Error(data.error?.code || 'INTERNAL_ERROR');
+    }
     return data;
   }
   function abortSearch(owner) {serials[owner]++;controllers[owner]?.abort();controllers[owner]=null;state.search[owner].busy=false;}

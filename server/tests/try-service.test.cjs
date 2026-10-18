@@ -155,13 +155,13 @@ test('private chat rejects mixed threads and malformed requests before catalog o
  assert.equal(catalogReads,0);assert.equal(f.sent.length,0);assert.equal(f.calls.length,0);
 });
 
-test('private chat validates shared interests but never looks up a withheld profile',async()=>{
+test('private chat omits expired facts and never looks up a withheld profile',async()=>{
  const f=fixture();await f.seed();const input=privateRequest();
  input.vibes.partner.entities=[ids.other];
  await f.service.privateChat(input);assert.equal(f.sent.length,1);
- await assert.rejects(f.service.privateChat({...input,partnerShared:true}),{code:'TRY_INTEREST_EXPIRED'});
- input.vibes.you.entities=[ids.other];await assert.rejects(f.service.privateChat(input),{code:'TRY_INTEREST_EXPIRED'});
- assert.equal(f.sent.length,1);assert.equal(f.calls.length,0);
+ await f.service.privateChat({...input,partnerShared:true});assert.deepEqual(f.sent[1].context.sharedPartnerVibe.entities,[]);
+ input.vibes.you.entities=[ids.other];await f.service.privateChat(input);assert.deepEqual(f.sent[2].context.ownVibe.entities,[]);
+ assert.equal(f.sent.length,3);assert.equal(f.calls.length,0);
 });
 
 test('private chat reads only verified public catalog fields across service instances',async()=>{
