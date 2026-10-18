@@ -1,5 +1,6 @@
 'use strict';
 (() => {
+  const bridgeDemo=new URLSearchParams(location.search).get('demo')==='bridge';
   const copy = {
     en: {
       stories:'Four stories ↗',language:'Language',eyebrow:'A little of you. A little of us.',title:'Bring a few things you love.\nFind something to share.',sampleNote:'The sample partner is a role you can try, not a person online.',
@@ -195,6 +196,17 @@
       card.append(node('p','',discovery.status==='exploratory'?(state.locale==='zh'?'从一个新发现开始，一起看看喜不喜欢。':'A new starting point — discover whether you enjoy it together.'):(state.locale==='zh'?'你们都没有选过它，Qloo 找到了连接两份 Vibe 的新发现。':'Neither of you picked this — a new discovery connecting both your Vibes.')));
       discovery.items.slice(0,1).forEach(item=>{
         const pick=node('article','bridge-discovery');pick.append(node('h4','',item.title+(item.year?' · '+item.year:'')),node('p','fine',state.locale==='zh'?'双方的原始选择 → 一起探索的新电影':'Your two starting points → a new film to explore together'));
+        if(item.evidence?.method==='qloo-explainability'){
+          const evidence=node('div','contribution-chart');evidence.append(node('p','fine',state.locale==='zh'?'Qloo · 双方输入贡献':'Qloo · input contributions'));
+          for(const owner of ['you','partner']){
+            const rows=item.evidence[owner]||[],value=rows.reduce((sum,row)=>sum+(Number.isFinite(row.score)?row.score:0),0);
+            if(!rows.length||value<0||value>1)continue;
+            const row=node('div','contribution-row'),label=t(owner)+' · '+state.vibes[owner].entities.map(e=>e.title).join(' + ');
+            row.append(node('span','',label),node('strong','',value.toFixed(3)));
+            const meter=document.createElement('meter');meter.min=0;meter.max=1;meter.value=value;meter.setAttribute('aria-label',label);row.append(meter);evidence.append(row);
+          }
+          evidence.append(node('p','fine',state.locale==='zh'?'Qloo 原始贡献值，0–1；不是喜爱概率或恋爱评分。':'Qloo contribution values, 0–1; not liking probabilities or compatibility scores.'));pick.append(evidence);
+        }
         const choose=button(state.locale==='zh'?'一起考虑这部电影':'Consider this together',()=>{
           if(state.busy||!state.started||!state.consent)return;
           state.plan={items:[{...item}],seeds:Object.entries(state.vibes).flatMap(([owner,vibe])=>vibe.entities.map(e=>({...e,owner}))),source:'qloo',expired:false};state.selected=item.id;state.confirmations={you:false,partner:false};renderPlan();
@@ -698,7 +710,7 @@
   }
   function scheduleLocalSave(){if(!localReady)return;clearTimeout(localTimer);localTimer=setTimeout(persistLocal,180);}
   function persistLocal(){
-    if(!localReady)return;
+    if(!localReady||bridgeDemo)return;
     try{state.drafts[threadKey()]=$('message').value;saveConnection();window.EverTryStorage.save(localStorage,{personal,ownVibe:state.vibes.you,city:state.city,selectedId:selectedPerson?.id||null,entries:[...connectionEntries].map(([id,e])=>[id,{entities:e.entities||[]}]),sessions:[...relationshipSessions],onboardingDismissed,view:state.view,speaker:state.speaker,autoPartner:state.autoPartner});localFailed=false;}
     catch{if(!localFailed){$('chat-error').textContent=D('Could not save on this device. Please keep this tab open.','无法在本机保存，请先保留这个页面。');localFailed=true;}}
   }
@@ -720,12 +732,28 @@
   copy.en.reset='Reset this device';copy.zh.reset='重置本机数据';
   copy.en.yourVibe='Things you love';copy.zh.yourVibe='你喜欢的事物';copy.en.chatCollect='Let EVE collect them from our chat';copy.zh.chatCollect='让 EVE 从聊天中整理';copy.en.manualFavourites='Add or change a favourite';copy.zh.manualFavourites='补充或修改喜欢的作品';
   const ownCard=document.querySelector('[data-owner=you]');const ownSearch=ownCard.querySelector('form');const manual=node('details','manual-interests');manual.append(node('summary','',D('Add or change a favourite','补充或修改喜欢的作品')));ownSearch.before(manual);manual.append(ownSearch);manual.querySelector('summary').dataset.i18n='manualFavourites';const chatDraft=button(D('Let EVE collect them from our chat','让 EVE 从聊天中整理'),()=>{closeSettings();renderMyVibe();mineDialog.showModal();draftMyVibe();},'primary');chatDraft.dataset.i18n='chatCollect';manual.before(chatDraft);
-  const restored=restoreLocal();
-  if(!restored){
+  const restored=bridgeDemo?false:restoreLocal();
+  if(!restored&&!bridgeDemo){
     const intro=node('div','discovery-intro');intro.setAttribute('role','dialog');intro.setAttribute('aria-label','Welcome to EverVibe');intro.append(node('p','eyebrow','EverVibe'),node('h1','',D('Less scrolling.\nMore discovering each other.','少一点滑动，\n多一点彼此发现。')),button(D('Meet EVE','认识 EVE'),()=>intro.remove(),'primary'));document.body.append(intro);setTimeout(()=>intro.remove(),3200);
     state.privateMessages.you.push({from:'eve',text:D('What’s something you’ve loved lately?','最近有什么让你喜欢的小事？'),sourceLang:state.locale});
   }
   translate();localReady=!localFailed;if(localFailed)$('chat-error').textContent=D('Saved data could not be opened. It has not been deleted.','无法读取已保存的数据，原数据尚未删除。');
+  const demoEntry=node('a','bridge-demo-entry',D('Try Taste Bridge →','体验口味之桥 →'));demoEntry.href='/try?lang='+state.locale+'&demo=bridge';
+  demoEntry.append(node('span','fine',D('Two sample tastes. One shared discovery.','两种示例口味，一次共同发现。')));document.querySelector('main').prepend(demoEntry);
+  if(bridgeDemo){
+    demoEntry.textContent=D('Taste Bridge · sample session','口味之桥 · 示例体验');demoEntry.href='/try?lang='+state.locale;
+    demoEntry.append(node('span','fine',D('Knives Out + Amélie · New York · Return to your saved space ↗','利刃出鞘＋天使爱美丽 · 纽约 · 返回我的空间 ↗')));
+    $('reset').hidden=true;
+    async function startBridgeDemo(){
+      state.view='plans';state.connection.opened=true;state.started=true;state.consent=true;state.bridgeBusy=true;translate();
+      try{
+        const choices=await Promise.all([['Knives Out',2019],['Amélie',2001]].map(async([query,year])=>{const r=await post('/api/try/search',{query,type:'movie',locale:state.locale});const item=r.items?.find(e=>e.title.toLowerCase()===query.toLowerCase()&&Number(e.year)===year);if(!item)throw Error('NOT_FOUND');return item;}));
+        state.vibes.you.entities=[choices[0]];state.vibes.partner.entities=[choices[1]];state.city='New York City';$('city').value=state.city;
+        state.sharing={you:{vibe:true,eve:true},partner:{vibe:true,eve:true}};state.everStarted=true;translate();await compareVibes();
+      }catch{state.bridgeBusy=false;state.started=false;state.consent=false;renderControls();const card=$('taste-bridge');card.hidden=false;card.replaceChildren(node('h3','',D('Taste Bridge','口味之桥')),node('p','fine',D('The sample tastes could not load. Please retry.','示例兴趣暂时未能加载，请重试。')),button(t('retry'),startBridgeDemo,'primary'));}
+    }
+    startBridgeDemo();
+  }
   for(const event of ['input','change','click'])document.addEventListener(event,scheduleLocalSave);
   window.addEventListener('pagehide',persistLocal);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')persistLocal();});
 })();
