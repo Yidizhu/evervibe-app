@@ -134,3 +134,8 @@ Photos are decoded and previewed locally with object URLs; they are not uploaded
 Talk naturally with EVE, then choose Vibe → Draft my Vibe from our chat. Review the introduction, partner wishes and recognized favourites before applying. Confirmed profile facts and your own recent EVE messages help EVE remember you across your separate relationship spaces; other people’s private transcripts are never merged. Latest explicit corrections take precedence in the draft. Manual favourites remain optional under Add or change a favourite.
 
 Discovery filters explicit age/gender criteria in both directions, then prioritizes a small, documented set of stated lifestyle wishes (quiet time, spontaneity, live music, outdoors, art or conversation), then ranks returned Qloo shared themes. Lifestyle matching is a transparent prototype rule, not unrestricted semantic understanding or a romantic compatibility score. Unrecognized wishes remain in your profile but may not affect ranking. Updated cultural favourites change the IDs sent to Qloo for subsequent recommendations. Existing conversations remain available in People.
+
+
+## License scope
+
+The MIT grant covers project-authored source code and documentation. Generated media and third-party works retain the terms stated in ASSETS.md and THIRD_PARTY_NOTICES.md. Provider services, catalogs and trademarks are not relicensed by this file.
